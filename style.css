@@ -21,6 +21,8 @@ html, body {
   font-family: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
   touch-action: none;
   overscroll-behavior: none;
 }
@@ -103,7 +105,7 @@ html, body {
   text-transform: uppercase;
   opacity: .85;
 }
-.icons { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.icons { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: var(--iw, none); }
 .icon {
   width: var(--isz, 54px);
   height: var(--isz, 54px);

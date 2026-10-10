@@ -10,6 +10,15 @@
   const ghost = $('ghost');
   const toastEl = $('toast');
 
+  // Safari < 16 (older iPads) has no roundRect.
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+      r = Math.min(typeof r === 'number' ? r : (r && r[0]) || 0, w / 2, h / 2);
+      this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r);
+      this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); this.closePath();
+    };
+  }
+
   let engine = null;
   let DPR = Math.min(2, window.devicePixelRatio || 1);
   let W = 0, H = 0;
@@ -80,9 +89,12 @@
     drawSprunkee(x, px / 2, px * 1.05, px * 0.92, { look: snd.look, color: snd.color, active: true, mouth: 0.3, t: 0, zzz: false });
   }
 
+  function perRow() { return window.innerWidth / window.innerHeight <= 1 || window.innerHeight >= 700 ? 3 : 5; }
+
   function paintIcons() {
     const isz = iconSize();
     tray.style.setProperty('--isz', isz + 'px');
+    tray.style.setProperty('--iw', (perRow() * isz + (perRow() - 1) * 6 + 2) + 'px');
     for (const snd of SOUNDS) paintIcon(iconEls[snd.id].querySelector('canvas'), snd, isz);
   }
 
@@ -90,8 +102,8 @@
     const vw = window.innerWidth, vh = window.innerHeight;
     const cols = vw / vh <= 1 ? 2 : 4;
     const gw = (vw - 16 - 10 * (cols - 1)) / cols;
-    const perRow = vw / vh <= 1 ? 3 : 5;
-    let s = Math.floor((gw - 6 * (perRow - 1)) / perRow);
+    const n = perRow();
+    let s = Math.floor((gw - 6 * (n - 1)) / n);
     s = Math.min(s, 64, Math.floor(vh * (cols === 2 ? 0.068 : 0.1)));
     return Math.max(34, s);
   }
@@ -102,11 +114,13 @@
     paintIcons();
     const r = canvas.getBoundingClientRect();
     W = r.width; H = r.height;
+    // keep big iPad screens smooth: cap the stage at ~3.2 megapixels
+    DPR = Math.min(DPR, Math.sqrt(3.2e6 / Math.max(1, W * H)));
     canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
     const top = topPad();
     const usable = H - top;
     if (W / usable >= 1.6) {
-      const size = Math.min(W / 8.2, usable * 0.5);
+      const size = Math.min(W / 7.8, usable * 0.5);
       const gap = W / (SLOTS + 0.4);
       slots.forEach((s, i) => { s.size = size; s.x = gap * (i + 0.7); s.y = top + usable * 0.86; });
     } else {
@@ -326,6 +340,12 @@
     if (!engine) return;
     if (document.hidden) engine.ctx.suspend(); else engine.ctx.resume();
   });
+  // iOS can suspend/interrupt audio (calls, Siri, app switch). Any touch brings it back.
+  const wake = () => { if (engine && !document.hidden && engine.ctx.state !== 'running') engine.ctx.resume(); };
+  ['touchend', 'pointerup', 'click'].forEach((ev) => document.addEventListener(ev, wake, true));
+  // no pinch-zoom / double-tap zoom in the middle of a jam
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('dblclick', (e) => e.preventDefault());
 
   // ---------- confetti ----------
   const CONF = ['#ff5d73', '#ffd23f', '#2fd38a', '#3aa8ff', '#b46bff', '#ff9be1', '#7ff5ff'];
