@@ -23,9 +23,11 @@
     <div id="topbar">
       <div id="logo" aria-label="Sprunkee"></div>
       <div class="tools">
-        <button class="tool" id="btnNight" title="Day / Night" aria-label="Switch day and night"></button>
+        <button class="tool" id="btnStage" title="Pick a stage" aria-label="Pick a stage"></button>
         <button class="tool" id="btnShuffle" title="Surprise mix" aria-label="Surprise mix"></button>
         <button class="tool" id="btnClear" title="Clear" aria-label="Clear everyone"></button>
+        <button class="tool" id="btnTrophy" title="Goals and scores" aria-label="Goals and scores"><span class="badge" id="trophyBadge" hidden></span></button>
+        <button class="tool" id="btnShare" title="Share my jam" aria-label="Share my jam"></button>
         <button class="tool" id="btnHelp" title="How to play" aria-label="How to play">?</button>
       </div>
     </div>
@@ -35,11 +37,12 @@
 
   <div id="ghost"></div>
   <div id="toast"></div>
+  <div id="pops"></div>
 
   <div class="overlay" id="start">
     <h1><span>S</span><span>P</span><span>R</span><span>U</span><span>N</span><span>K</span><span>E</span><span>E</span></h1>
     <canvas id="startCanvas"></canvas>
-    <p>Make music with your new friends!</p>
+    <p id="startLine">Make music with your new friends!</p>
     <button class="big" id="btnPlay">TAP TO PLAY</button>
   </div>
 
@@ -51,15 +54,80 @@
         <li><b>Tap</b> a Sprunkee to hush it. Tap again to wake it.</li>
         <li>Tap the <b>✕</b> to send it home.</li>
         <li>Fill all 7 for a <b>SUPER JAM!</b></li>
-        <li>Press the <b>moon</b> for spooky night music.</li>
+        <li>Win <b>trophies</b> to unlock new friends and stages.</li>
       </ol>
       <button class="big" id="btnHelpOk">GOT IT!</button>
     </div>
   </div>
 
+  <!-- trophy room: goals / top 10 / shared jams -->
+  <div class="overlay dim hidden" id="room">
+    <div class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab on" data-tab="goals" role="tab">🏆 Goals</button>
+        <button class="tab" data-tab="top" role="tab">⭐ Top 10</button>
+        <button class="tab" data-tab="jams" role="tab">🎵 Jams</button>
+        <button class="close" id="roomClose" aria-label="Close">✕</button>
+      </div>
+      <div class="pane" id="paneGoals"></div>
+      <div class="pane hidden" id="paneTop"></div>
+      <div class="pane hidden" id="paneJams"></div>
+    </div>
+  </div>
+
+  <!-- stage picker -->
+  <div class="overlay dim hidden" id="stages">
+    <div class="panel">
+      <div class="tabs"><h2 class="ptitle">Pick a stage</h2><button class="close" id="stagesClose" aria-label="Close">✕</button></div>
+      <div class="stagegrid" id="stageGrid"></div>
+    </div>
+  </div>
+
+  <!-- share a jam -->
+  <div class="overlay dim hidden" id="share">
+    <div class="card">
+      <h2>Share your jam!</h2>
+      <canvas id="shareBand"></canvas>
+      <div class="namerow"><span id="jamName"></span><button class="mini" id="btnReroll" aria-label="New name">🎲</button></div>
+      <p class="by">by <button class="ini" id="btnIni">???</button></p>
+      <button class="big" id="btnShareGo">SHARE!</button>
+      <div id="shareDone" hidden>
+        <p class="ok">Shared! Friends can find it in 🎵 Jams.</p>
+        <p class="small">Or send this link:</p>
+        <input id="shareLink" readonly>
+        <button class="mini wide" id="btnCopy">Copy link</button>
+      </div>
+      <button class="link" id="shareClose">Close</button>
+    </div>
+  </div>
+
+  <!-- arcade initials -->
+  <div class="overlay dim hidden" id="initials">
+    <div class="card">
+      <h2>Your initials</h2>
+      <div class="inirow" id="iniRow"></div>
+      <button class="big" id="iniOk">OK!</button>
+    </div>
+  </div>
+
+  <!-- unlock / info card -->
+  <div class="overlay dim hidden" id="reward">
+    <div class="card">
+      <p class="eyebrow" id="rewardEyebrow"></p>
+      <h2 id="rewardTitle"></h2>
+      <canvas id="rewardArt"></canvas>
+      <p id="rewardText"></p>
+      <button class="big" id="rewardOk">YAY!</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
   <script src="audio.js"></script>
   <script src="sounds.js"></script>
   <script src="art.js"></script>
+  <script src="progress.js"></script>
+  <script src="cloud.js"></script>
+  <script src="scene.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

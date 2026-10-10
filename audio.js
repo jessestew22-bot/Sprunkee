@@ -2,11 +2,17 @@
 // Everything is synthesized live; there are no audio files.
 'use strict';
 
+// Stages ("tracks"). Every part is written in scale degrees, so each stage re-harmonizes the whole band.
+// Order matters: the index is stored in share codes. Append only.
 const THEMES = {
-  // Day: C major, I-V-vi-IV. Night: A minor, i-v-VI-iv (same scale degrees, so every part fits both).
-  day:   { tonic: 60, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 4, 5, 3], rev: 0.22, bright: 1 },
-  night: { tonic: 57, scale: [0, 2, 3, 5, 7, 8, 10], prog: [0, 4, 5, 3], rev: 0.38, bright: 0.7 },
+  day:    { tonic: 60, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 4, 5, 3], bpm: 110, rev: 0.22, dark: false }, // C major  I-V-vi-IV
+  night:  { tonic: 57, scale: [0, 2, 3, 5, 7, 8, 10], prog: [0, 4, 5, 3], bpm: 110, rev: 0.38, dark: true },  // A minor  i-v-VI-iv
+  beach:  { tonic: 65, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 3, 4, 3], bpm: 96, rev: 0.3, dark: false },  // F major  I-IV-V-IV
+  candy:  { tonic: 67, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 5, 3, 4], bpm: 124, rev: 0.2, dark: false }, // G major  I-vi-IV-V
+  space:  { tonic: 62, scale: [0, 2, 3, 5, 7, 9, 10], prog: [0, 3, 6, 4], bpm: 118, rev: 0.45, dark: true }, // D dorian i-IV-VII-v
+  snow:   { tonic: 63, scale: [0, 2, 4, 5, 7, 9, 11], prog: [5, 3, 0, 4], bpm: 104, rev: 0.4, dark: false }, // Eb major vi-IV-I-V
 };
+const STAGE_IDS = Object.keys(THEMES);
 
 const VOWELS = {
   a: [[730, 1], [1090, 0.5], [2440, 0.22]],
@@ -159,6 +165,14 @@ class Engine {
   }
 
   setTheme(name) { this.pendingTheme = name; }
+  // Switch right away (used when the stage is silent, and for loading shared jams).
+  forceTheme(name) {
+    this.pendingTheme = null;
+    this.themeName = name; this.theme = THEMES[name];
+    this.bpm = this.theme.bpm;
+    this.delayNode.delayTime.value = this.stepDur * 3;
+    this.revIn.gain.value = this.theme.rev;
+  }
 
   // ---------- music theory ----------
   barOf(step) { return Math.floor(step / 16) % 4; }
@@ -205,9 +219,14 @@ class Engine {
       this.theme = THEMES[this.pendingTheme];
       this.pendingTheme = null;
       this.revIn.gain.setTargetAtTime(this.theme.rev, t, 0.3);
+      if (this.theme.bpm !== this.bpm) {
+        this.bpm = this.theme.bpm;
+        this.delayNode.delayTime.setTargetAtTime(this.stepDur * 3, t, 0.05);
+      }
       this.emit('theme', { name: this.themeName, time: t });
     }
     if (step % 64 === 0) this.emit('loop', { step, time: t });
+    if (step % 16 === 0) this.emit('bar', { step, time: t, secs: this.stepDur * 16 });
     if (step % 4 === 0) this.beatTimes.push({ time: t, step });
     const s16 = step % 16, bar = this.barOf(step);
     for (const ch of this.channels) {
@@ -222,7 +241,7 @@ class Engine {
   }
 
   _S(step, t, s16, bar, out, pump, hit) {
-    return { step, t, s16, bar, out, pump, hit, night: this.themeName === 'night', sd: this.stepDur };
+    return { step, t, s16, bar, out, pump, hit, night: !!this.theme.dark, stage: this.themeName, sd: this.stepDur };
   }
 
   // ---------- instrument primitives ----------
@@ -486,4 +505,5 @@ class Engine {
 
 window.Engine = Engine;
 window.THEMES = THEMES;
+window.STAGE_IDS = STAGE_IDS;
 window.mtof = mtof;

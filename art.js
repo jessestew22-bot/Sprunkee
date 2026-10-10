@@ -465,6 +465,68 @@ function drawAccessory(g, acc, s, w, h, size, lw, col) {
       g.beginPath(); g.arc(0, 0, w * 0.04, 0, Math.PI * 2); g.fill(); g.stroke();
       g.restore();
       break;
+    case 'party':
+      g.fillStyle = '#ffd23f';
+      g.beginPath(); g.moveTo(-w * 0.16, top + h * 0.06); g.lineTo(w * 0.04, top - h * 0.3); g.lineTo(w * 0.2, top + h * 0.06); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#ff5d73';
+      for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(-w * 0.06 + i * w * 0.07, top - h * (0.02 + i * 0.09), w * 0.025, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = '#3aa8ff'; g.beginPath(); g.arc(w * 0.04, top - h * 0.32, w * 0.05, 0, Math.PI * 2); g.fill(); g.stroke();
+      break;
+    case 'cowboy':
+      g.fillStyle = '#a0612b';
+      g.beginPath(); g.ellipse(0, top + h * 0.08, w * 0.55, h * 0.06, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.beginPath(); g.moveTo(-w * 0.26, top + h * 0.07); g.quadraticCurveTo(-w * 0.28, top - h * 0.2, -w * 0.08, top - h * 0.14);
+      g.quadraticCurveTo(0, top - h * 0.08, w * 0.08, top - h * 0.14); g.quadraticCurveTo(w * 0.28, top - h * 0.2, w * 0.26, top + h * 0.07); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#ffd23f'; g.fillRect(-w * 0.25, top + h * 0.0, w * 0.5, h * 0.035);
+      break;
+    case 'star': {
+      g.beginPath(); g.moveTo(0, top + 2); g.lineTo(0, top - h * 0.12); g.stroke();
+      const pr = w * 0.13 * (1 + (s.pulse || 0) * 0.4);
+      g.fillStyle = '#ffd23f'; g.beginPath();
+      for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5 + t; const rr = i % 2 ? pr * 0.45 : pr; g.lineTo(Math.cos(an) * rr, top - h * 0.2 + Math.sin(an) * rr); }
+      g.closePath(); g.fill(); g.stroke();
+      break;
+    }
+    case 'flower':
+      g.save(); g.translate(w * 0.22, top + h * 0.1); g.rotate(t * 0.8);
+      g.fillStyle = '#ff9be1';
+      for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(Math.cos(i * 1.256) * w * 0.07, Math.sin(i * 1.256) * w * 0.07, w * 0.06, w * 0.04, i * 1.256, 0, Math.PI * 2); g.fill(); g.stroke(); }
+      g.fillStyle = '#ffd23f'; g.beginPath(); g.arc(0, 0, w * 0.045, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.restore();
+      break;
+    case 'antlers':
+      g.strokeStyle = '#8a5a2b'; g.lineWidth = lw * 1.6;
+      [-1, 1].forEach((sd) => {
+        g.beginPath(); g.moveTo(sd * w * 0.18, top + h * 0.05); g.lineTo(sd * w * 0.3, top - h * 0.22);
+        g.moveTo(sd * w * 0.25, top - h * 0.1); g.lineTo(sd * w * 0.4, top - h * 0.14);
+        g.moveTo(sd * w * 0.28, top - h * 0.18); g.lineTo(sd * w * 0.2, top - h * 0.28); g.stroke();
+      });
+      g.lineWidth = lw; g.strokeStyle = OUTLINE;
+      break;
+    case 'afro':
+      g.fillStyle = '#3b2314';
+      for (let i = 0; i < 7; i++) {
+        const an = Math.PI + (i / 6) * Math.PI;
+        g.beginPath(); g.arc(Math.cos(an) * w * 0.38, top + h * 0.2 + Math.sin(an) * h * 0.3, w * 0.16, 0, Math.PI * 2); g.fill();
+      }
+      g.fillStyle = '#ff5d73';
+      g.fillRect(w * 0.12, top - h * 0.12, w * 0.04, h * 0.18); // pick
+      break;
+    case 'scarf':
+      g.fillStyle = '#ff5d73';
+      g.beginPath(); g.roundRect(-w * 0.44, -h * 0.36, w * 0.88, h * 0.1, h * 0.04); g.fill(); g.stroke();
+      g.save(); g.translate(w * 0.25, -h * 0.28); g.rotate(0.2 + Math.sin(t * 5) * 0.15);
+      g.beginPath(); g.roundRect(-w * 0.06, 0, w * 0.12, h * 0.22, 4); g.fill(); g.stroke();
+      g.restore();
+      g.fillStyle = '#fff';
+      for (let i = -3; i <= 3; i += 2) g.fillRect(i * w * 0.1 - 2, -h * 0.35, 4, h * 0.08);
+      break;
+    case 'astro':
+      g.fillStyle = 'rgba(190,240,255,0.28)'; g.strokeStyle = 'rgba(255,255,255,0.9)';
+      g.beginPath(); g.ellipse(0, -h * 0.58, w * 0.6, h * 0.55, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.ellipse(-w * 0.3, -h * 0.85, w * 0.08, h * 0.12, -0.5, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = OUTLINE;
+      break;
     case 'mohawk':
       g.fillStyle = dark;
       g.beginPath();

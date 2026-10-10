@@ -302,6 +302,179 @@ const SOUNDS = [
       if (S.bar === 3 && S.s16 === 12) shout('o');
     },
   },
+
+  // ================= UNLOCKABLES (append only: index is used in share codes) =================
+  // ---- beats ----
+  {
+    id: 'tappy', name: 'Tappy', cat: 'beat', color: '#ff9f6b', unlock: true,
+    look: { shape: 'round', acc: 'party', eyes: 'happy', mouth: 'smile' },
+    vol: 1.0, rev: 0.15,
+    play(e, S) {
+      // shaker 16ths + tambourine on 2 and 4
+      const v = [0.5, 0.25, 0.4, 0.25][S.s16 % 4];
+      e.snap(S.out, S.t + (S.s16 % 2 ? S.sd * 0.1 : 0), v * 0.5, { freq: 9000, q: 0.7, len: 0.05, claps: 1 });
+      if (S.s16 === 4 || S.s16 === 12) {
+        e.snap(S.out, S.t, 0.6, { freq: 7500, q: 2, len: 0.22, claps: 4 });
+        S.hit(1);
+      } else if (S.s16 % 4 === 0) S.hit(0.4);
+    },
+  },
+  {
+    id: 'thumpo', name: 'Thumpo', cat: 'beat', color: '#d62f4a', unlock: true,
+    look: { shape: 'square', acc: 'cap', eyes: 'shades', mouth: 'grin' },
+    vol: 0.7, rev: 0.05,
+    play(e, S) {
+      // trap: big 808 boom, rolling hats
+      const k = S.bar % 2 ? 'x......x..x.....' : 'x.........x..x..';
+      if (pat(k, S.s16) === 'x') {
+        e.kick(S.out, S.t, 0.9, { f0: 120, f1: 40, len: 0.9 });
+        e.tone(S.out, S.t, e.deg(e.chordRoot(S.step), -3), S.sd * 3, { type: 'sine', v: 0.35, cutoff: 300, rel: 0.2 });
+        S.hit(1);
+      }
+      const roll = S.bar === 3 && S.s16 >= 12;
+      if (S.s16 % 2 === 0 || roll) {
+        e.hat(S.out, S.t, roll ? 0.5 : 0.35);
+        if (roll) e.hat(S.out, S.t + S.sd / 2, 0.4);
+      }
+    },
+  },
+  {
+    id: 'cowbo', name: 'Cowbo', cat: 'beat', color: '#ffc94d', unlock: true,
+    look: { shape: 'pear', acc: 'cowboy', eyes: 'big', mouth: 'o' },
+    vol: 1.1, rev: 0.12,
+    play(e, S) {
+      const p = 'x..x..x...x.x...';
+      if (pat(p, S.s16) !== 'x') return;
+      // classic cowbell: two detuned squares through a bandpass
+      [587, 845].forEach((f) => e.blip(S.out, S.t, f, f * 0.99, 0.18, { type: 'square', v: S.s16 === 0 ? 0.13 : 0.09 }));
+      S.hit(S.s16 === 0 ? 1 : 0.7);
+    },
+  },
+  // ---- effects ----
+  {
+    id: 'sirena', name: 'Sirena', cat: 'fx', color: '#6ee7b7', unlock: true,
+    look: { shape: 'tall', acc: 'star', eyes: 'big', mouth: 'shout' },
+    vol: 0.8, rev: 0.3, dly: 0.2,
+    play(e, S) {
+      if (S.bar % 2 === 1 && (S.s16 === 0 || S.s16 === 8)) {
+        const lo = mtof(e.chordNote(S.step, 2, 0)), hi = mtof(e.chordNote(S.step, 4, 0));
+        const c = S.out.context, o = c.createOscillator(), g = c.createGain();
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(lo, S.t);
+        for (let i = 1; i <= 4; i++) o.frequency.linearRampToValueAtTime(i % 2 ? hi : lo, S.t + i * S.sd * 2);
+        g.gain.setValueAtTime(0.0001, S.t); g.gain.linearRampToValueAtTime(0.22, S.t + 0.05);
+        g.gain.setValueAtTime(0.22, S.t + S.sd * 7); g.gain.exponentialRampToValueAtTime(0.0001, S.t + S.sd * 8);
+        o.connect(g); g.connect(S.out); o.start(S.t); o.stop(S.t + S.sd * 8 + 0.05);
+        S.hit(1);
+      } else if (S.s16 % 4 === 0 && S.bar % 2 === 1) S.hit(0.5);
+    },
+  },
+  {
+    id: 'sparkle', name: 'Sparkle', cat: 'fx', color: '#a7f3d0', unlock: true,
+    look: { shape: 'cloud', acc: 'flower', eyes: 'lashes', mouth: 'smile' },
+    vol: 1.0, rev: 0.5, dly: 0.35,
+    play(e, S) {
+      const seq = { 0: 7, 3: 9, 6: 8, 9: 10, 12: 9, 14: 11 };
+      const k = seq[S.s16];
+      if (k === undefined) return;
+      e.mallet(S.out, S.t, e.chordNote(S.step, k + (S.bar % 2), 1), 0.14, { ratio: 2.76, pv: 0.5, len: 0.7 });
+      S.hit(0.8);
+    },
+  },
+  {
+    id: 'rumbo', name: 'Rumbo', cat: 'fx', color: '#16a34a', unlock: true,
+    look: { shape: 'square', acc: 'antlers', eyes: 'sleepy', mouth: 'grin' },
+    vol: 0.65, rev: 0.05,
+    play(e, S) {
+      // wobble bass: a filter that "talks" in 8ths
+      if (S.s16 % 2) return;
+      const m = e.deg(e.chordRoot(S.step), -2) + (S.s16 === 6 || S.s16 === 14 ? 12 : 0);
+      e.tone(S.out, S.t, m, S.sd * 1.7, { type: 'sawtooth', v: 0.3, cutoff: 180, fenv: S.s16 % 4 ? 600 : 1800, fdecay: S.sd * 1.6, q: 9, voices: 2, detune: 10, rel: 0.04 });
+      S.hit(S.s16 % 4 ? 0.6 : 1);
+    },
+  },
+  // ---- melody ----
+  {
+    id: 'clavvy', name: 'Clavvy', cat: 'melody', color: '#60a5fa', unlock: true,
+    look: { shape: 'round', acc: 'afro', eyes: 'shades', mouth: 'grin' },
+    vol: 0.6, rev: 0.12,
+    play(e, S) {
+      // funky clav: short plucky chord chops
+      const p = { 0: 1, 3: 2, 4: 1, 7: 2, 10: 1, 11: 3, 14: 2 };
+      const k = p[S.s16];
+      if (k === undefined) return;
+      e.tone(S.out, S.t, e.chordNote(S.step, k, 0), S.sd * 0.5, { type: 'square', v: 0.14, cutoff: 600, fenv: 3500, fdecay: 0.08, q: 4, rel: 0.03 });
+      e.tone(S.out, S.t, e.chordNote(S.step, k + 1, 0), S.sd * 0.5, { type: 'square', v: 0.1, cutoff: 600, fenv: 3000, fdecay: 0.08, q: 4, rel: 0.03 });
+      S.hit(0.8);
+    },
+  },
+  {
+    id: 'trumpo', name: 'Trumpo', cat: 'melody', color: '#2563eb', unlock: true,
+    look: { shape: 'pear', acc: 'tophat', eyes: 'happy', mouth: 'o' },
+    vol: 1.1, rev: 0.25,
+    play(e, S) {
+      // brass stabs answering the beat
+      const p = S.bar % 2 ? { 10: [2, 2], 12: [3, 3] } : { 0: [2, 2], 3: [3, 1], 6: [4, 4] };
+      const n = p[S.s16];
+      if (!n) return;
+      for (const k of [n[0], n[0] - 2]) {
+        e.tone(S.out, S.t, e.chordNote(S.step, k, 0), S.sd * n[1] * 0.8, { type: 'sawtooth', v: 0.1, voices: 2, detune: 8, cutoff: 900, fenv: 2200, fdecay: 0.12, a: 0.02, rel: 0.12, vib: 0.006 });
+      }
+      S.hit(1);
+    },
+  },
+  {
+    id: 'whistlo', name: 'Whistlo', cat: 'melody', color: '#93c5fd', unlock: true,
+    look: { shape: 'tall', acc: 'scarf', eyes: 'happy', mouth: 'o' },
+    vol: 0.55, rev: 0.4, dly: 0.25,
+    play(e, S) {
+      // a whistled answer to the main theme, an octave up
+      const line = [[[0, 4, 3], [4, 5, 2], [6, 4, 6]], [[8, 3, 2], [10, 2, 2], [12, 1, 4]], [[0, 2, 3], [4, 4, 2], [6, 7, 6]], [[8, 5, 2], [10, 4, 2], [12, 4, 4]]];
+      for (const [st, d, len] of line[S.bar]) {
+        if (st !== S.s16) continue;
+        e.tone(S.out, S.t, e.deg(d, 1), S.sd * len * 0.85, { type: 'sine', v: 0.2, a: 0.03, rel: 0.12, vib: 0.01, vibRate: 6, glideFrom: e.deg(d, 1) - 2 });
+        S.hit(1);
+      }
+    },
+  },
+  // ---- voices ----
+  {
+    id: 'robo', name: 'Robo', cat: 'voice', color: '#9333ea', unlock: true,
+    look: { shape: 'square', acc: 'astro', eyes: 'pixel', mouth: 'sing' },
+    vol: 0.6, rev: 0.2, dly: 0.25,
+    play(e, S) {
+      // "beep boop" robot voice
+      const p = { 0: ['i', 4], 2: ['u', 2], 8: ['i', 5], 10: ['u', 3], 12: ['o', 2] };
+      const n = p[S.s16];
+      if (!n || (S.bar % 2 && S.s16 >= 8)) return;
+      e.voice(S.out, S.t, e.chordNote(S.step, n[1], 0), S.sd * 1.4, n[0], { cons: 'b', v: 0.3, vib: 0, a: 0.005, rel: 0.04 });
+      S.hit(1);
+    },
+  },
+  {
+    id: 'hummy', name: 'Hummy', cat: 'voice', color: '#d8b4fe', unlock: true,
+    look: { shape: 'cloud', acc: 'bow', eyes: 'sleepy', mouth: 'smile' },
+    vol: 0.5, rev: 0.45,
+    play(e, S) {
+      // "mmm-hmm" humming harmony, two notes per bar
+      if (S.s16 !== 0 && S.s16 !== 8) return;
+      const k = S.s16 === 0 ? 2 : 1;
+      e.voice(S.out, S.t, e.chordNote(S.step, k, 0), S.sd * 7, 'u', { cons: 'm', v: 0.28, a: 0.08, rel: 0.25, vib: 0.012 });
+      S.hit(0.8);
+    },
+  },
+  {
+    id: 'woo', name: 'Woo', cat: 'voice', color: '#c026d3', unlock: true,
+    look: { shape: 'round', acc: 'party', eyes: 'big', mouth: 'shout' },
+    vol: 0.6, rev: 0.35, dly: 0.3,
+    play(e, S) {
+      // "woo!" party shouts that slide up
+      if (!((S.bar === 1 || S.bar === 3) && (S.s16 === 6 || S.s16 === 14))) return;
+      const m = e.chordNote(S.step, 3, 0);
+      e.voice(S.out, S.t, m, S.sd * 2.2, 'u', { cons: 'w', glideFrom: m - 7, v: 0.4, vib: 0.01, a: 0.01, rel: 0.12, to: 'o' });
+      S.hit(1);
+    },
+  },
 ];
 
 // Bonus fanfare layer for SUPER JAM (4 bars, played on the master bus).

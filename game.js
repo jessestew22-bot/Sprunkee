@@ -1,4 +1,4 @@
-// Sprunkee: game logic, layout, input and the render loop.
+// Sprunkee: game logic, layout, input, menus and the render loop.
 'use strict';
 
 (() => {
@@ -22,80 +22,120 @@
   let engine = null;
   let DPR = Math.min(2, window.devicePixelRatio || 1);
   let W = 0, H = 0;
-  let nightMix = 0;             // 0 = day, 1 = night (animated)
-  let nightTarget = 0;
-  let party = false, partyStart = 0, partyQueued = false;
+  let stageFrom = 'day', stageTo = 'day', stageK = 1; // backdrop blend
+  let darkness = 0;
+  let party = false, partyQueued = false;
   let started = false;
+  let shownPts = 0;
+  let newGoals = 0;
   const particles = [];
   const confetti = [];
   const pointer = { x: -1, y: -1, active: false };
-  let drag = null;              // { sound, el, moved, startX, startY, id }
+  let drag = null;
 
   const slots = Array.from({ length: SLOTS }, (_, i) => ({
     i, sound: null, muted: false, pulse: 0, mouth: 0, enter: 0, blinkAt: 2 + Math.random() * 4, blink: 0,
     x: 0, y: 0, size: 100, hover: false,
   }));
+  const soundById = (id) => SOUNDS.find((s) => s.id === id);
 
-  // ---------- logo ----------
+  // ---------- logo + toolbar ----------
   $('logo').innerHTML = 'SPRUNKEE'.split('').map((c) => `<span>${c}</span>`).join('');
-
-  // ---------- toolbar icons ----------
   const SVG = {
-    moon: '<svg viewBox="0 0 24 24"><path fill="#ffe680" d="M20 15.5A8.5 8.5 0 0 1 8.5 4a8.5 8.5 0 1 0 11.5 11.5z"/></svg>',
-    sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#ffd23f"/><g stroke="#ffd23f" stroke-width="2.4" stroke-linecap="round"><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1"/></g></svg>',
+    stage: '<svg viewBox="0 0 24 24"><path fill="#ffe680" d="M20 15.5A8.5 8.5 0 0 1 8.5 4a8.5 8.5 0 1 0 11.5 11.5z"/><circle cx="18" cy="5" r="1.4" fill="#fff"/><circle cx="21" cy="9" r="0.9" fill="#fff"/></svg>',
     dice: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5" fill="#fff"/><g fill="#6a3bd1"><circle cx="8" cy="8" r="1.8"/><circle cx="16" cy="8" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="8" cy="16" r="1.8"/><circle cx="16" cy="16" r="1.8"/></g></svg>',
     clear: '<svg viewBox="0 0 24 24"><path fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg>',
+    trophy: '<svg viewBox="0 0 24 24"><path fill="#ffd23f" d="M7 3h10v3h3a3 3 0 0 1-3 4.6A5 5 0 0 1 13 14v3h3v3H8v-3h3v-3a5 5 0 0 1-4-3.4A3 3 0 0 1 4 6h3zm-1 5a1.5 1.5 0 0 0 1 1.4V8zm12 0v1.4A1.5 1.5 0 0 0 19 8z"/></svg>',
+    share: '<svg viewBox="0 0 24 24"><g fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></g></svg>',
   };
-  $('btnNight').innerHTML = SVG.moon;
+  $('btnStage').innerHTML = SVG.stage;
   $('btnShuffle').innerHTML = SVG.dice;
   $('btnClear').innerHTML = SVG.clear;
+  $('btnTrophy').insertAdjacentHTML('afterbegin', SVG.trophy);
+  $('btnShare').innerHTML = SVG.share;
 
   // ---------- tray ----------
-  const iconEls = {};
+  let iconEls = {};
+  let freshIds = new Set();
+
+  function trayItems(cat) {
+    const list = SOUNDS.filter((s) => s.cat === cat.id);
+    const open = list.filter((s) => Progress.isSoundUnlocked(s.id));
+    const goalIdx = (s) => GOALS.indexOf(Progress.goalFor('sound', s.id));
+    const locked = list.filter((s) => !Progress.isSoundUnlocked(s.id)).sort((a, b) => goalIdx(a) - goalIdx(b));
+    return { open, teaser: locked[0] || null };
+  }
+
   function buildTray() {
     tray.innerHTML = '';
+    iconEls = {};
+    let most = 0;
     for (const cat of CATS) {
+      const { open, teaser } = trayItems(cat);
+      most = Math.max(most, open.length + (teaser ? 1 : 0));
       const grp = document.createElement('div');
       grp.className = 'group';
       grp.innerHTML = `<h3 style="color:${cat.color}">${cat.name}</h3>`;
       const icons = document.createElement('div');
       icons.className = 'icons';
-      for (const snd of SOUNDS.filter((s) => s.cat === cat.id)) {
+      for (const snd of open) {
         const b = document.createElement('button');
-        b.className = 'icon';
+        b.className = 'icon' + (freshIds.has(snd.id) ? ' fresh' : '');
         b.style.background = cat.color;
         b.setAttribute('aria-label', snd.name);
         b.title = snd.name;
-        const c = document.createElement('canvas');
-        b.appendChild(c);
+        b.appendChild(document.createElement('canvas'));
         icons.appendChild(b);
         iconEls[snd.id] = b;
         b.addEventListener('pointerdown', (ev) => onIconDown(ev, snd));
       }
+      if (teaser) {
+        const b = document.createElement('button');
+        b.className = 'icon locked';
+        b.setAttribute('aria-label', 'Locked friend');
+        b.appendChild(document.createElement('canvas'));
+        b.dataset.teaser = teaser.id;
+        b.addEventListener('click', () => showLockedSound(teaser));
+        icons.appendChild(b);
+      }
       grp.appendChild(icons);
       tray.appendChild(grp);
     }
-    iconEls[SOUNDS[0].id].classList.add('hint');
+    tray.dataset.most = most;
+    slots.forEach((s) => { if (s.sound && iconEls[s.sound.id]) iconEls[s.sound.id].classList.add('used'); });
+    if (!Progress.state.wakes && iconEls[SOUNDS[0].id]) iconEls[SOUNDS[0].id].classList.add('hint');
+    paintIcons();
   }
 
-  function paintIcon(c, snd, px) {
-    c.width = c.height = px * DPR;
+  function paintIcon(c, snd, px, locked) {
+    c.width = c.height = Math.round(px * DPR);
     const x = c.getContext('2d');
     x.setTransform(DPR, 0, 0, DPR, 0, 0);
     const cat = CATS.find((k) => k.id === snd.cat);
+    if (locked) {
+      x.fillStyle = '#3a2a63'; x.fillRect(0, 0, px, px);
+      // silhouette: draw the friend, then paint over it
+      const off = document.createElement('canvas');
+      off.width = off.height = c.width;
+      const o = off.getContext('2d'); o.setTransform(DPR, 0, 0, DPR, 0, 0);
+      drawSprunkee(o, px / 2, px * 1.05, px * 0.92, { look: snd.look, color: snd.color, active: true, t: 0, zzz: false });
+      o.globalCompositeOperation = 'source-atop'; o.fillStyle = '#5a4790'; o.fillRect(0, 0, px, px);
+      x.drawImage(off, 0, 0, px, px);
+      x.fillStyle = '#ffd23f'; x.font = `800 ${Math.round(px * 0.42)}px "Baloo 2", sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText('?', px / 2, px * 0.55);
+      return;
+    }
     const grad = x.createRadialGradient(px * 0.35, px * 0.3, 2, px / 2, px / 2, px * 0.7);
     grad.addColorStop(0, shadeColor(cat.color, 0.35)); grad.addColorStop(1, cat.color);
     x.fillStyle = grad; x.fillRect(0, 0, px, px);
     drawSprunkee(x, px / 2, px * 1.05, px * 0.92, { look: snd.look, color: snd.color, active: true, mouth: 0.3, t: 0, zzz: false });
   }
 
-  function perRow() { return window.innerWidth / window.innerHeight <= 1 || window.innerHeight >= 700 ? 3 : 5; }
-
-  function paintIcons() {
-    const isz = iconSize();
-    tray.style.setProperty('--isz', isz + 'px');
-    tray.style.setProperty('--iw', (perRow() * isz + (perRow() - 1) * 6 + 2) + 'px');
-    for (const snd of SOUNDS) paintIcon(iconEls[snd.id].querySelector('canvas'), snd, isz);
+  function perRow() {
+    const n = +tray.dataset.most || 5;
+    const land = window.innerWidth / window.innerHeight > 1;
+    if (land && window.innerHeight < 700 && n <= 5) return n;
+    return Math.max(3, Math.ceil(n / 2));
   }
 
   function iconSize() {
@@ -108,14 +148,23 @@
     return Math.max(34, s);
   }
 
+  function paintIcons() {
+    const isz = iconSize(), n = perRow();
+    tray.style.setProperty('--isz', isz + 'px');
+    tray.style.setProperty('--iw', (n * isz + (n - 1) * 6 + 2) + 'px');
+    for (const id in iconEls) paintIcon(iconEls[id].querySelector('canvas'), soundById(id), isz);
+    tray.querySelectorAll('[data-teaser]').forEach((b) => paintIcon(b.querySelector('canvas'), soundById(b.dataset.teaser), isz, true));
+  }
+
+  const markUsed = (snd, on) => { if (snd && iconEls[snd.id]) iconEls[snd.id].classList.toggle('used', on); };
+
   // ---------- layout ----------
   function layout() {
     DPR = Math.min(2, window.devicePixelRatio || 1);
     paintIcons();
     const r = canvas.getBoundingClientRect();
     W = r.width; H = r.height;
-    // keep big iPad screens smooth: cap the stage at ~3.2 megapixels
-    DPR = Math.min(DPR, Math.sqrt(3.2e6 / Math.max(1, W * H)));
+    DPR = Math.min(DPR, Math.sqrt(3.2e6 / Math.max(1, W * H))); // keep big iPads smooth
     canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
     const top = topPad();
     const usable = H - top;
@@ -131,15 +180,13 @@
       });
     }
   }
-
-  // portrait phones: the star meter drops below the buttons
   function topPad() { return W < 640 ? 104 : Math.min(80, H * 0.16); }
   function meterY() { return W < 640 ? 82 : topPad() - 18; }
 
-  // ---------- sound assignment ----------
-  function isUsed(snd) { return slots.some((s) => s.sound === snd); }
+  // ---------- band changes ----------
+  const hasBand = () => slots.some((s) => s.sound);
 
-  function assign(slot, snd) {
+  function assign(slot, snd, opts = {}) {
     if (!engine) return;
     const prev = slot.sound;
     const old = slots.find((s) => s.sound === snd);
@@ -147,28 +194,36 @@
     slot.sound = snd; slot.muted = false; slot.enter = performance.now();
     stopIntro();
     engine.setSound(slot.i, snd);
-    if (prev) iconEls[prev.id].classList.remove('used');
-    iconEls[snd.id].classList.add('used');
-    iconEls[SOUNDS[0].id].classList.remove('hint');
+    markUsed(prev, false); markUsed(snd, true);
+    if (iconEls[SOUNDS[0].id]) iconEls[SOUNDS[0].id].classList.remove('hint');
     poof(slot, snd.color, 26);
-    blipUI(70 + slot.i * 2);
+    if (!opts.quiet) { blipUI(70 + slot.i * 2); Progress.wake(snd.id); }
   }
 
   function clearSlot(slot, quiet) {
     if (!slot.sound) return;
-    iconEls[slot.sound.id].classList.remove('used');
+    markUsed(slot.sound, false);
     if (!quiet) poof(slot, '#ffffff', 14);
     slot.sound = null; slot.muted = false;
     engine.setSound(slot.i, null);
+    Progress.touch();
+    if (!hasBand()) finishJam();
   }
 
   function toggleMute(slot) {
     slot.muted = !slot.muted;
     engine.setMuted(slot.i, slot.muted);
     slot.pulse = 0.6;
+    if (!slot.muted) Progress.rewake(); else Progress.touch();
   }
 
-  function firstEmpty() { return slots.find((s) => !s.sound); }
+  function finishJam() {
+    const pts = Progress.endJam();
+    if (pts > 0 && pts >= Progress.state.best) toast('NEW BEST!', 1600, 0.7);
+    postBest();
+  }
+
+  const firstEmpty = () => slots.find((s) => !s.sound);
 
   // ---------- input: tray ----------
   function onIconDown(ev, snd) {
@@ -207,7 +262,6 @@
       const hit = slotAt(ev.clientX - r.left, ev.clientY - r.top, 1.25);
       if (hit) assign(hit, snd);
     } else {
-      // tap: send to the first free friend (or bring a used sound home)
       const own = slots.find((s) => s.sound === snd);
       if (own) clearSlot(own);
       else {
@@ -223,8 +277,7 @@
   function slotAt(x, y, reach = 1) {
     let best = null, bd = Infinity;
     for (const s of slots) {
-      const cx = s.x, cy = s.y - s.size * 0.5;
-      const d = Math.hypot((x - cx) / (s.size * 0.6), (y - cy) / (s.size * 0.75));
+      const d = Math.hypot((x - s.x) / (s.size * 0.6), (y - (s.y - s.size * 0.5)) / (s.size * 0.75));
       if (d < reach && d < bd) { bd = d; best = s; }
     }
     return best;
@@ -246,32 +299,78 @@
     else if (s) { s.pulse = 1; blipUI(84); }
   });
 
-  // ---------- toolbar ----------
-  $('btnNight').addEventListener('click', () => {
+  // ---------- stages ----------
+  function applyStage(name) {
+    if (name === stageTo) return;
+    stageFrom = stageTo; stageTo = name; stageK = 0;
+    document.querySelector('meta[name=theme-color]').setAttribute('content', STAGE_LOOK[name].meta);
+  }
+
+  function setStage(id) {
     if (!engine) return;
-    const next = (engine.pendingTheme || engine.themeName) === 'day' ? 'night' : 'day';
-    engine.setTheme(next);
-    $('btnNight').innerHTML = next === 'night' ? SVG.sun : SVG.moon;
-    if (!slots.some((s) => s.sound)) { engine.themeName = next; engine.theme = THEMES[next]; engine.pendingTheme = null; applyTheme(next); }
-  });
+    Progress.touch();
+    const live = slots.some((s) => s.sound && !s.muted);
+    if (!live) { engine.forceTheme(id); applyStage(id); toast(STAGE_INFO[id].name.toUpperCase() + '!', 1400, 0.7); } else engine.setTheme(id);
+  }
+
+  function openStages() {
+    const grid = $('stageGrid');
+    grid.innerHTML = '';
+    const cur = engine ? (engine.pendingTheme || engine.themeName) : 'day';
+    for (const id of STAGE_IDS) {
+      const open = Progress.isStageUnlocked(id);
+      const b = document.createElement('button');
+      b.className = 'stagecard' + (open ? '' : ' locked') + (id === cur ? ' on' : '');
+      const c = document.createElement('canvas');
+      b.appendChild(c);
+      if (open) b.insertAdjacentHTML('beforeend', `<span class="sn">${STAGE_INFO[id].name}</span>`);
+      else {
+        const goal = Progress.goalFor('stage', id);
+        const [p, m] = Progress.progressOf(goal);
+        b.insertAdjacentHTML('beforeend', `<span class="lk"><b>🔒</b>${goal.label}<br>${fmt(p)} / ${fmt(m)}</span>`);
+      }
+      b.addEventListener('click', () => {
+        if (!open) return;
+        setStage(id);
+        $('stages').classList.add('hidden');
+      });
+      grid.appendChild(b);
+    }
+    $('stages').classList.remove('hidden');
+    grid.querySelectorAll('canvas').forEach((c, i) => {
+      const w = c.clientWidth || 200, h = c.clientHeight || 125;
+      c.width = w * DPR; c.height = h * DPR;
+      const x = c.getContext('2d'); x.setTransform(DPR, 0, 0, DPR, 0, 0);
+      Scene.thumb(x, w, h, STAGE_IDS[i]);
+    });
+  }
+
+  // ---------- toolbar ----------
+  $('btnStage').addEventListener('click', () => { if (engine) openStages(); });
+  $('stagesClose').addEventListener('click', () => $('stages').classList.add('hidden'));
   $('btnShuffle').addEventListener('click', () => {
     if (!engine) return;
     slots.forEach((s) => clearSlot(s, true));
+    const pool = SOUNDS.filter((s) => Progress.isSoundUnlocked(s.id));
     const pick = [];
     for (const cat of CATS) {
-      const list = SOUNDS.filter((s) => s.cat === cat.id);
+      const list = pool.filter((s) => s.cat === cat.id);
       pick.push(list[Math.floor(Math.random() * list.length)]);
     }
-    const rest = SOUNDS.filter((s) => !pick.includes(s)).sort(() => Math.random() - 0.5);
-    const n = 4 + Math.floor(Math.random() * 2);
-    pick.push(...rest.slice(0, n - 4));
-    pick.forEach((snd, i) => assign(slots[i], snd));
+    const rest = pool.filter((s) => !pick.includes(s)).sort(() => Math.random() - 0.5);
+    pick.push(...rest.slice(0, Math.floor(Math.random() * 2)));
+    pick.forEach((snd, i) => assign(slots[i], snd, { quiet: true }));
+    pick.forEach((snd) => Progress.wake(snd.id));
+    blipUI(76);
+    Progress.shuffle();
   });
   $('btnClear').addEventListener('click', () => { if (!engine) return; slots.forEach((s) => clearSlot(s)); playIntro(); });
   $('btnHelp').addEventListener('click', () => $('help').classList.remove('hidden'));
   $('btnHelpOk').addEventListener('click', () => $('help').classList.add('hidden'));
 
   // ---------- feedback ----------
+  const fmt = (n) => Math.round(n).toLocaleString('en-US');
+
   function toast(text, ms = 1600, scale = 1) {
     toastEl.textContent = text;
     toastEl.style.fontSize = scale !== 1 ? `clamp(24px, ${9 * scale}vw, ${90 * scale}px)` : '';
@@ -280,10 +379,26 @@
     toast._t = setTimeout(() => toastEl.classList.remove('show'), ms);
   }
 
+  function popPoints(text, big) {
+    const r = canvas.getBoundingClientRect();
+    const el = document.createElement('div');
+    el.className = 'pop' + (big ? ' big' : '');
+    el.textContent = text;
+    el.style.left = (r.left + W / 2 + Math.min(150, W * 0.35) - 20) + 'px';
+    el.style.top = (r.top + meterY() + 14) + 'px';
+    $('pops').appendChild(el);
+    setTimeout(() => el.remove(), 1200);
+  }
+
   function blipUI(midi) {
     if (!engine) return;
-    const t = engine.ctx.currentTime + 0.01;
-    engine.mallet(engine.bus, t, midi, 0.12, { ratio: 3, pv: 0.2, len: 0.2 });
+    engine.mallet(engine.bus, engine.ctx.currentTime + 0.01, midi, 0.12, { ratio: 3, pv: 0.2, len: 0.2 });
+  }
+
+  function fanfare() {
+    if (!engine) return;
+    const t = engine.ctx.currentTime + 0.05;
+    [72, 76, 79, 84, 79, 84].forEach((m, i) => engine.mallet(engine.bus, t + i * 0.1, m, 0.22, { ratio: 3.98, pv: 0.2, len: 0.6 }));
   }
 
   function poof(slot, color, n) {
@@ -294,9 +409,247 @@
     }
   }
 
-  function applyTheme(name) {
-    nightTarget = name === 'night' ? 1 : 0;
-    document.querySelector('meta[name=theme-color]').setAttribute('content', name === 'night' ? '#0b0a2a' : '#2a1460');
+  // ---------- cards: unlocks, locked info ----------
+  const cardQueue = [];
+  let cardArt = null;
+  function showCard(card) { cardQueue.push(card); if (cardQueue.length === 1) openCard(); }
+  function openCard() {
+    const c = cardQueue[0];
+    if (!c) return;
+    $('rewardEyebrow').textContent = c.eyebrow;
+    $('rewardTitle').textContent = c.title;
+    $('rewardText').textContent = c.text;
+    $('rewardOk').textContent = c.btn || 'YAY!';
+    cardArt = c.draw;
+    $('reward').classList.remove('hidden');
+    if (c.celebrate) { fanfare(); burstConfetti(80); }
+  }
+  $('rewardOk').addEventListener('click', () => {
+    cardQueue.shift();
+    $('reward').classList.add('hidden');
+    cardArt = null;
+    if (cardQueue.length) setTimeout(openCard, 250);
+  });
+  function drawCardArt(t) {
+    if (!cardArt) return;
+    const c = $('rewardArt');
+    const w = c.clientWidth, h = c.clientHeight;
+    if (!w) return;
+    if (c.width !== Math.round(w * DPR)) { c.width = Math.round(w * DPR); c.height = Math.round(h * DPR); }
+    const x = c.getContext('2d'); x.setTransform(DPR, 0, 0, DPR, 0, 0); x.clearRect(0, 0, w, h);
+    cardArt(x, w, h, t);
+  }
+  const artSound = (snd, silhouette) => (x, w, h, t) => {
+    const beat = (t * 1.8) % 1;
+    drawSprunkee(x, w / 2, h - 8, Math.min(w * 0.6, h * 0.7), {
+      look: snd.look, color: silhouette ? '#5a4790' : snd.color, active: !silhouette, pulse: silhouette ? 0 : Math.pow(1 - beat, 3) * 0.7,
+      mouth: silhouette ? 0 : Math.pow(1 - beat, 3), t, beat, zzz: false,
+    });
+  };
+  const artStage = (id) => (x, w, h) => { x.save(); x.beginPath(); x.roundRect(0, 0, w, h, 18); x.clip(); Scene.thumb(x, w, h, id); x.restore(); };
+  const artTrophy = (x, w, h, t) => { drawStar(x, w / 2, h / 2, Math.min(w, h) * (0.38 + Math.sin(t * 4) * 0.03), '#ffd23f'); };
+
+  function showLockedSound(snd) {
+    const goal = Progress.goalFor('sound', snd.id);
+    const [p, m] = Progress.progressOf(goal);
+    showCard({ eyebrow: 'Secret friend', title: '???', text: `To unlock: ${goal.label} (${fmt(p)} / ${fmt(m)})`, btn: 'OK', draw: artSound(snd, true) });
+  }
+
+  Progress.onGoal((goal) => {
+    newGoals++;
+    $('trophyBadge').textContent = newGoals; $('trophyBadge').hidden = false;
+    const r = goal.reward;
+    if (r && r.sound) {
+      const snd = soundById(r.sound);
+      freshIds.add(snd.id);
+      buildTray();
+      showCard({ eyebrow: 'New friend!', title: snd.name.toUpperCase(), text: `You did it: ${goal.label}. Find ${snd.name} down in the tray!`, draw: artSound(snd), celebrate: true });
+    } else if (r && r.stage) {
+      showCard({ eyebrow: 'New stage!', title: STAGE_INFO[r.stage].name.toUpperCase(), text: `You did it: ${goal.label}. Tap the moon button to go there!`, draw: artStage(r.stage), celebrate: true });
+    } else {
+      showCard({ eyebrow: 'Trophy!', title: 'AMAZING!', text: `You did it: ${goal.label}.`, draw: artTrophy, celebrate: true });
+    }
+  });
+
+  // ---------- trophy room ----------
+  let roomTab = 'goals';
+  function openRoom(tab) {
+    newGoals = 0; $('trophyBadge').hidden = true;
+    $('room').classList.remove('hidden');
+    showTab(tab || roomTab);
+    postBest();
+  }
+  function showTab(tab) {
+    roomTab = tab;
+    document.querySelectorAll('#room .tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+    $('paneGoals').classList.toggle('hidden', tab !== 'goals');
+    $('paneTop').classList.toggle('hidden', tab !== 'top');
+    $('paneJams').classList.toggle('hidden', tab !== 'jams');
+    if (tab === 'goals') renderGoals();
+    if (tab === 'top') renderTop();
+    if (tab === 'jams') renderJams();
+  }
+  document.querySelectorAll('#room .tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  $('btnTrophy').addEventListener('click', () => { if (engine) openRoom(); });
+  $('roomClose').addEventListener('click', () => $('room').classList.add('hidden'));
+
+  function renderGoals() {
+    const pane = $('paneGoals');
+    const done = GOALS.filter((x) => Progress.state.done[x.id]).length;
+    pane.innerHTML = `<p class="note">${done} of ${GOALS.length} trophies. Total points: <b>${fmt(Progress.state.total)}</b></p>`;
+    for (const goal of GOALS) {
+      const [p, m] = Progress.progressOf(goal);
+      const isDone = !!Progress.state.done[goal.id];
+      const r = goal.reward;
+      const rewardText = r ? (r.sound ? `Unlocks a new friend${isDone ? ': ' + soundById(r.sound).name : ''}` : `Unlocks a stage${isDone ? ': ' + STAGE_INFO[r.stage].name : ''}`) : 'Trophy';
+      const row = document.createElement('div');
+      row.className = 'goal' + (isDone ? ' done' : '');
+      row.innerHTML = `<canvas></canvas><div><div class="lbl">${goal.label}</div><div class="rew">${rewardText}</div>
+        <div class="bar"><i style="width:${Math.round((p / m) * 100)}%"></i></div></div><div class="st">${isDone ? '✅' : `<small>${fmt(p)}/${fmt(m)}</small>`}</div>`;
+      pane.appendChild(row);
+      const c = row.querySelector('canvas');
+      c.width = c.height = 56 * DPR;
+      const x = c.getContext('2d'); x.setTransform(DPR, 0, 0, DPR, 0, 0);
+      x.fillStyle = isDone ? '#efe8ff' : '#3a2a63'; x.beginPath(); x.arc(28, 28, 28, 0, Math.PI * 2); x.fill();
+      x.save(); x.beginPath(); x.arc(28, 28, 28, 0, Math.PI * 2); x.clip();
+      if (r && r.sound) paintIcon(c, soundById(r.sound), 56, !isDone);
+      else if (r && r.stage) { Scene.thumb(x, 56, 56, r.stage); if (!isDone) { x.fillStyle = 'rgba(30,20,60,0.7)'; x.fillRect(0, 0, 56, 56); } }
+      else drawStar(x, 28, 30, 20, isDone ? '#ffd23f' : '#6b5a90');
+      x.restore();
+    }
+  }
+
+  async function renderTop() {
+    const pane = $('paneTop');
+    const st = Progress.state;
+    pane.innerHTML = `<div class="mybest"><span>Your best jam: ${fmt(st.best)}</span>
+      <button class="ini" id="topIni">${st.initials || 'ADD ME'}</button></div><div id="topList"><p class="note">Loading…</p></div>`;
+    $('topIni').addEventListener('click', async () => { await pickInitials(); postBest(true); renderTop(); });
+    const list = $('topList');
+    if (!Cloud.online) { list.innerHTML = '<p class="note">The online leaderboard isn\'t switched on yet. Your best score is saved on this device.</p>'; return; }
+    try {
+      const rows = await Cloud.topScores();
+      if (!rows.length) { list.innerHTML = '<p class="note">No scores yet. Be the first!</p>'; return; }
+      list.innerHTML = '<table class="board">' + rows.map((x, i) =>
+        `<tr class="${x.ini === st.initials && x.score === st.best ? 'me' : ''}"><td>${i + 1}</td><td>${x.ini}</td><td>${fmt(x.score)}</td></tr>`).join('') + '</table>';
+    } catch (e) { list.innerHTML = '<p class="note">Couldn\'t reach the leaderboard. Try again in a bit.</p>'; }
+  }
+
+  async function renderJams() {
+    const pane = $('paneJams');
+    pane.innerHTML = '<p class="note">Loading…</p>';
+    if (!Cloud.online) { pane.innerHTML = '<p class="note">Shared jams aren\'t switched on yet. You can still share a jam link from the share button.</p>'; return; }
+    try {
+      const rows = await Cloud.listJams();
+      if (!rows.length) { pane.innerHTML = '<p class="note">No shared jams yet. Make one and press share!</p>'; return; }
+      pane.innerHTML = '';
+      for (const j of rows) {
+        const dec = Jam.decode(j.code);
+        const look = STAGE_LOOK[dec.stage];
+        const row = document.createElement('div');
+        row.className = 'jamrow';
+        row.innerHTML = `<div class="sw" style="background:linear-gradient(${look.sky[0]},${look.sky[2]})"></div>
+          <div><div class="nm"></div><div class="who">by ${j.ini} · ${dec.slots.filter((x) => x.sound).length} friends · ${STAGE_INFO[dec.stage].name}</div></div>
+          <button class="playbtn">▶ Play</button>`;
+        row.querySelector('.nm').textContent = j.name;
+        row.querySelector('.playbtn').addEventListener('click', () => { $('room').classList.add('hidden'); loadJam(dec, j.ini, j.name); });
+        pane.appendChild(row);
+      }
+    } catch (e) { pane.innerHTML = '<p class="note">Couldn\'t reach the jam list. Try again in a bit.</p>'; }
+  }
+
+  let posting = false;
+  async function postBest(force) {
+    const st = Progress.state;
+    if (posting || !st.initials || !Cloud.online || !st.best || (!force && st.best <= st.postedBest)) return;
+    posting = true;
+    try { if (await Cloud.postScore(st.initials, st.best, st.pid)) Progress.markPosted(st.best); } catch (e) { /* try again later */ }
+    posting = false;
+  }
+
+  // ---------- initials ----------
+  function pickInitials() {
+    return new Promise((resolve) => {
+      const cur = (Progress.state.initials || 'AAA').padEnd(3, 'A').split('');
+      const row = $('iniRow');
+      row.innerHTML = '';
+      cur.forEach((ch, i) => {
+        const col = document.createElement('div');
+        col.className = 'inicol';
+        col.innerHTML = `<button aria-label="Next letter">▲</button><span>${ch}</span><button aria-label="Previous letter">▼</button>`;
+        const span = col.querySelector('span');
+        const step = (d) => { cur[i] = String.fromCharCode(((cur[i].charCodeAt(0) - 65 + d + 26) % 26) + 65); span.textContent = cur[i]; blipUI(72 + i * 4); };
+        col.querySelectorAll('button')[0].addEventListener('click', () => step(1));
+        col.querySelectorAll('button')[1].addEventListener('click', () => step(-1));
+        row.appendChild(col);
+      });
+      $('initials').classList.remove('hidden');
+      $('iniOk').onclick = () => {
+        $('initials').classList.add('hidden');
+        Progress.setInitials(cur.join(''));
+        resolve(cur.join(''));
+      };
+    });
+  }
+
+  // ---------- sharing ----------
+  let jamName = '';
+  function openShare() {
+    if (!hasBand()) { toast('Add some friends first!', 1500, 0.6); return; }
+    jamName = randomJamName();
+    $('jamName').textContent = jamName;
+    $('btnIni').textContent = Progress.state.initials || '???';
+    $('shareDone').hidden = true;
+    $('btnShareGo').hidden = false;
+    $('share').classList.remove('hidden');
+    const c = $('shareBand');
+    const w = c.clientWidth, h = c.clientHeight;
+    c.width = w * DPR; c.height = h * DPR;
+    const x = c.getContext('2d'); x.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const band = slots.filter((s) => s.sound);
+    band.forEach((s, i) => {
+      const sz = Math.min(h * 0.9, w / band.length * 0.95);
+      drawSprunkee(x, w * (i + 0.5) / band.length, h - 4, sz, { look: s.sound.look, color: s.sound.color, active: true, muted: s.muted, mouth: 0.4, t: i, zzz: false });
+    });
+  }
+  $('btnShare').addEventListener('click', () => { if (engine) openShare(); });
+  $('btnReroll').addEventListener('click', () => { jamName = randomJamName(); $('jamName').textContent = jamName; blipUI(80); });
+  $('btnIni').addEventListener('click', async () => { $('btnIni').textContent = await pickInitials(); });
+  $('shareClose').addEventListener('click', () => $('share').classList.add('hidden'));
+  $('btnShareGo').addEventListener('click', async () => {
+    const ini = Progress.state.initials || await pickInitials();
+    $('btnIni').textContent = ini;
+    const code = Jam.encode(engine.pendingTheme || engine.themeName, slots);
+    $('shareLink').value = Jam.link(code, ini);
+    let ok = false;
+    if (Cloud.online) { try { ok = await Cloud.shareJam(ini, jamName, code, Progress.state.pid); } catch (e) { ok = false; } }
+    $('shareDone').hidden = false;
+    $('btnShareGo').hidden = true;
+    document.querySelector('#shareDone .ok').textContent = ok ? 'Shared! Friends can find it in 🎵 Jams.' : 'Here\'s your jam link!';
+    fanfare();
+    Progress.shared();
+  });
+  $('btnCopy').addEventListener('click', () => {
+    const v = $('shareLink').value;
+    const done = () => { $('btnCopy').textContent = 'Copied!'; setTimeout(() => { $('btnCopy').textContent = 'Copy link'; }, 1500); };
+    const fallback = () => { $('shareLink').select(); try { document.execCommand('copy'); done(); } catch (e) { /* user can copy by hand */ } };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done, fallback); else fallback();
+  });
+
+  function loadJam(dec, ini) {
+    if (!engine || !dec) return;
+    stopIntro();
+    slots.forEach((s) => clearSlot(s, true));
+    engine.forceTheme(dec.stage);
+    applyStage(dec.stage);
+    dec.slots.forEach((x, i) => {
+      if (!x.sound) return;
+      assign(slots[i], x.sound, { quiet: true });
+      if (x.muted) { slots[i].muted = true; engine.setMuted(i, true); }
+    });
+    toast(ini ? `${ini}'S JAM!` : 'JAM TIME!', 1800, 0.8);
+    fanfare();
+    if (!ini || ini !== Progress.state.initials) Progress.listened();
   }
 
   // ---------- opening theme (Ian's request) ----------
@@ -311,7 +664,7 @@
 
   function playIntro() {
     introBuf.then((buf) => {
-      if (!buf || !engine || intro || slots.some((s) => s.sound)) return;
+      if (!buf || !engine || intro || hasBand()) return;
       const c = engine.ctx, src = c.createBufferSource(), gn = c.createGain();
       src.buffer = buf; src.loop = true;
       gn.gain.setValueAtTime(0.0001, c.currentTime);
@@ -332,6 +685,12 @@
   }
 
   // ---------- start ----------
+  const hashJam = Jam.fromHash();
+  if (hashJam && Jam.decode(hashJam.code)) {
+    $('startLine').textContent = hashJam.ini ? `${hashJam.ini} sent you a jam!` : 'Someone sent you a jam!';
+    $('btnPlay').textContent = 'PLAY THE JAM';
+  }
+
   function startGame() {
     if (started) return;
     started = true;
@@ -342,42 +701,54 @@
     const b = engine.ctx.createBufferSource();
     b.buffer = engine.ctx.createBuffer(1, 1, 22050); b.connect(engine.ctx.destination); b.start(0);
     slots.forEach((s, i) => engine.makeChannel(i, (i - (SLOTS - 1) / 2) / ((SLOTS - 1) / 2) * 0.55));
+
     engine.on('theme', ({ name, time }) => {
-      const d = Math.max(0, (time - engine.ctx.currentTime) * 1000);
-      setTimeout(() => { applyTheme(name); toast(name === 'night' ? 'NIGHT TIME!' : 'GOOD MORNING!', 1500, 0.8); }, d);
+      setTimeout(() => { applyStage(name); toast(STAGE_INFO[name].name.toUpperCase() + '!', 1500, 0.7); }, Math.max(0, (time - engine.ctx.currentTime) * 1000));
+    });
+    engine.on('bar', ({ time, secs }) => {
+      setTimeout(() => {
+        const act = slots.filter((s) => s.sound && !s.muted);
+        if (!act.length) return;
+        const cats = new Set(act.map((s) => s.sound.cat)).size;
+        const pts = Progress.bar({ active: act.length, cats, party, stage: engine.themeName, secs });
+        if (pts) popPoints('+' + pts);
+      }, Math.max(0, (time - engine.ctx.currentTime) * 1000));
     });
     engine.on('loop', ({ step, time }) => {
       const full = slots.every((s) => s.sound && !s.muted);
       if (full && !party && !partyQueued) {
         partyQueued = true;
         engine.extras.push({ fn: bonusLayer, startStep: step, len: 64 });
-        const d = Math.max(0, (time - engine.ctx.currentTime) * 1000);
         setTimeout(() => {
           partyQueued = false;
           if (!slots.every((s) => s.sound && !s.muted)) return;
-          party = true; partyStart = performance.now(); toast('SUPER JAM!', 2600);
+          party = true; toast('SUPER JAM!', 2600);
           burstConfetti(160);
-        }, d);
+          popPoints('+' + Progress.superJam(engine.themeName), true);
+        }, Math.max(0, (time - engine.ctx.currentTime) * 1000));
       }
     });
     engine.start();
-    // welcome jingle, then the opening theme
     const t = engine.ctx.currentTime + 0.05;
     [72, 76, 79, 84].forEach((m, i) => engine.mallet(engine.bus, t + i * 0.09, m, 0.2, { ratio: 3.98, pv: 0.2, len: 0.5 }));
-    playIntro();
     $('start').classList.add('hidden');
-    try { if (!localStorage.getItem('sprunkee.helped')) { $('help').classList.remove('hidden'); localStorage.setItem('sprunkee.helped', '1'); } } catch (e) { /* storage blocked */ }
+    if (hashJam && Jam.decode(hashJam.code)) {
+      loadJam(Jam.decode(hashJam.code), hashJam.ini);
+      history.replaceState(null, '', location.pathname + location.search);
+    } else {
+      playIntro();
+      try { if (!localStorage.getItem('sprunkee.helped')) { $('help').classList.remove('hidden'); localStorage.setItem('sprunkee.helped', '1'); } } catch (e) { /* storage blocked */ }
+    }
   }
   $('btnPlay').addEventListener('click', startGame);
 
   document.addEventListener('visibilitychange', () => {
     if (!engine) return;
-    if (document.hidden) engine.ctx.suspend(); else engine.ctx.resume();
+    if (document.hidden) { engine.ctx.suspend(); postBest(); } else engine.ctx.resume();
   });
   // iOS can suspend/interrupt audio (calls, Siri, app switch). Any touch brings it back.
   const wake = () => { if (engine && !document.hidden && engine.ctx.state !== 'running') engine.ctx.resume(); };
   ['touchend', 'pointerup', 'click'].forEach((ev) => document.addEventListener(ev, wake, true));
-  // no pinch-zoom / double-tap zoom in the middle of a jam
   document.addEventListener('gesturestart', (e) => e.preventDefault());
   document.addEventListener('dblclick', (e) => e.preventDefault());
 
@@ -388,112 +759,6 @@
       confetti.push({ x: Math.random() * W, y: -20 - Math.random() * H * 0.5, vx: (Math.random() - 0.5) * 60, vy: 80 + Math.random() * 120,
         rot: Math.random() * 6, vr: (Math.random() - 0.5) * 10, w: 6 + Math.random() * 6, h: 10 + Math.random() * 8,
         color: CONF[i % CONF.length], age: 0 });
-    }
-  }
-
-  // ---------- background ----------
-  const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random() * 0.6, r: Math.random() * 1.6 + 0.4, p: Math.random() * 6 }));
-  const clouds = Array.from({ length: 6 }, (_, i) => ({ x: Math.random(), y: 0.08 + Math.random() * 0.3, s: 0.6 + Math.random() * 0.8, v: 0.004 + i * 0.002 }));
-  const flies = Array.from({ length: 24 }, () => ({ x: Math.random(), y: 0.3 + Math.random() * 0.5, p: Math.random() * 10 }));
-
-  function lerpCol(a, b, k) { return mixColor(a, b, k); }
-
-  function drawBackground(t, level) {
-    const n = nightMix;
-    const sky = g.createLinearGradient(0, 0, 0, H);
-    sky.addColorStop(0, lerpCol('#6ec8ff', '#0b0a2a', n));
-    sky.addColorStop(0.55, lerpCol('#bfe6ff', '#2b1561', n));
-    sky.addColorStop(1, lerpCol('#ffd6ec', '#5b2a86', n));
-    g.fillStyle = sky; g.fillRect(0, 0, W, H);
-
-    // stars
-    if (n > 0.01) {
-      for (const s of stars) {
-        g.globalAlpha = n * (0.5 + 0.5 * Math.sin(t * 2 + s.p));
-        g.fillStyle = '#fff';
-        g.beginPath(); g.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2); g.fill();
-      }
-      g.globalAlpha = 1;
-    }
-
-    // sun / moon
-    const cx = W * 0.82, cy = H * 0.2 + n * H * 0.02, R = Math.min(W, H) * 0.08 * (1 + level * 0.25);
-    if (n < 0.99) {
-      g.globalAlpha = 1 - n;
-      const sg = g.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 2.4);
-      sg.addColorStop(0, 'rgba(255,240,150,0.9)'); sg.addColorStop(1, 'rgba(255,240,150,0)');
-      g.fillStyle = sg; g.beginPath(); g.arc(cx, cy, R * 2.4, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#ffe066'; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.fill();
-      g.globalAlpha = 1;
-    }
-    if (n > 0.01) {
-      g.globalAlpha = n;
-      const mg = g.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 2.2);
-      mg.addColorStop(0, 'rgba(210,200,255,0.6)'); mg.addColorStop(1, 'rgba(210,200,255,0)');
-      g.fillStyle = mg; g.beginPath(); g.arc(cx, cy, R * 2.2, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#f4f0ff'; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.fill();
-      g.fillStyle = lerpCol('#bfe6ff', '#2b1561', n);
-      g.beginPath(); g.arc(cx + R * 0.45, cy - R * 0.25, R * 0.85, 0, Math.PI * 2); g.fill();
-      g.globalAlpha = 1;
-    }
-
-    // clouds
-    for (const c of clouds) {
-      c.x += c.v / 60;
-      if (c.x > 1.2) c.x = -0.2;
-      const x = c.x * W, y = c.y * H, s = c.s * Math.min(W, H) * 0.08;
-      g.fillStyle = n > 0.5 ? `rgba(120,100,200,${0.35 * n})` : `rgba(255,255,255,${0.85 * (1 - n)})`;
-      g.beginPath();
-      g.arc(x, y, s, 0, Math.PI * 2); g.arc(x + s * 0.9, y + s * 0.15, s * 0.75, 0, Math.PI * 2);
-      g.arc(x - s * 0.9, y + s * 0.2, s * 0.65, 0, Math.PI * 2); g.arc(x + s * 0.3, y - s * 0.45, s * 0.7, 0, Math.PI * 2);
-      g.fill();
-    }
-
-    // hills (parallax, gently bouncing to the music)
-    const hills = [
-      { y: 0.62, a: 0.05, f: 1.3, c1: '#8be08f', c2: '#3b2a7a', sp: 0.05 },
-      { y: 0.7, a: 0.04, f: 2.1, c1: '#5fcf74', c2: '#2a1d5c', sp: 0.09 },
-    ];
-    hills.forEach((hl, k) => {
-      g.fillStyle = lerpCol(hl.c1, hl.c2, n);
-      g.beginPath(); g.moveTo(0, H);
-      for (let x = 0; x <= W + 10; x += 10) {
-        const y = H * hl.y - Math.sin(x / W * Math.PI * hl.f + t * hl.sp + k) * H * hl.a - level * H * 0.02 * (k + 1) * Math.sin(x / 60 + t * 3);
-        g.lineTo(x, y);
-      }
-      g.lineTo(W, H); g.closePath(); g.fill();
-    });
-
-    // stage floor
-    const fy = slots[slots.length - 1].y - 4;
-    const fg = g.createLinearGradient(0, fy - 20, 0, H);
-    fg.addColorStop(0, lerpCol('#ffb3d9', '#3a1f6e', n));
-    fg.addColorStop(1, lerpCol('#e08bc0', '#1a0d3d', n));
-    g.fillStyle = fg;
-    g.beginPath();
-    g.moveTo(0, H); g.lineTo(0, fy - 12);
-    g.quadraticCurveTo(W / 2, fy - 40, W, fy - 12);
-    g.lineTo(W, H); g.closePath(); g.fill();
-    // floor lights
-    for (let i = 0; i < 14; i++) {
-      const x = (i + 0.5) * W / 14;
-      const on = party ? (Math.floor(t * 8) + i) % 3 === 0 : (i % 2 === 0);
-      g.fillStyle = on ? CONF[i % CONF.length] : 'rgba(255,255,255,0.25)';
-      g.globalAlpha = on ? 0.9 : 0.5;
-      g.beginPath(); g.arc(x, fy + (H - fy) * 0.55, Math.max(3, W * 0.006), 0, Math.PI * 2); g.fill();
-    }
-    g.globalAlpha = 1;
-
-    // fireflies at night
-    if (n > 0.05) {
-      for (const f of flies) {
-        const x = (f.x + Math.sin(t * 0.3 + f.p) * 0.03) * W, y = (f.y + Math.cos(t * 0.4 + f.p) * 0.03) * H;
-        g.globalAlpha = n * (0.4 + 0.6 * Math.max(0, Math.sin(t * 2 + f.p)));
-        const fg2 = g.createRadialGradient(x, y, 0, x, y, 8);
-        fg2.addColorStop(0, '#fff9a8'); fg2.addColorStop(1, 'rgba(255,249,168,0)');
-        g.fillStyle = fg2; g.beginPath(); g.arc(x, y, 8, 0, Math.PI * 2); g.fill();
-      }
-      g.globalAlpha = 1;
     }
   }
 
@@ -528,12 +793,12 @@
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     const t = now / 1000;
     requestAnimationFrame(frame);
+    drawCardArt(t);
     if (!W) return;
 
     let beat = 0, level = 0;
     if (engine) {
       const at = engine.ctx.currentTime;
-      // visual hits
       const keep = [];
       for (const h of engine.hits) {
         if (h.time <= at) {
@@ -549,7 +814,6 @@
         } else keep.push(h);
       }
       engine.hits = keep.length > 400 ? keep.slice(-400) : keep;
-      // beat phase
       let lb = null;
       while (engine.beatTimes.length && engine.beatTimes[0].time <= at) lb = engine.beatTimes.shift();
       if (lb) frame.lastBeat = lb.time;
@@ -558,14 +822,12 @@
       if (engine.beatTimes.length > 64) engine.beatTimes.splice(0, engine.beatTimes.length - 64);
     }
 
-    // party ends when someone leaves or hushes
     if (party && !slots.every((s) => s.sound && !s.muted)) party = false;
     if (party && Math.random() < 0.15) burstConfetti(2);
-
-    nightMix += (nightTarget - nightMix) * Math.min(1, dt * 2.5);
+    stageK = Math.min(1, stageK + dt * 0.8);
 
     g.setTransform(DPR, 0, 0, DPR, 0, 0);
-    drawBackground(t, level);
+    darkness = Scene.draw(g, W, H, t, level, STAGE_LOOK[stageFrom], STAGE_LOOK[stageTo], stageK, slots[SLOTS - 1].y - 4, { party, colors: CONF });
     if (party) {
       g.save(); g.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 5; i++) {
@@ -578,7 +840,6 @@
     }
     drawSpotlights(t);
 
-    // characters (back row first)
     const order = [...slots].sort((a, b) => a.y - b.y);
     for (const s of order) {
       s.pulse = Math.max(0, s.pulse - dt * 4);
@@ -594,11 +855,10 @@
       }
       drawSprunkee(g, s.x, s.y, s.size, {
         look: s.sound ? s.sound.look : null, color: s.sound ? s.sound.color : null, active: !!s.sound, muted: s.muted,
-        pulse: s.pulse, mouth: s.mouth, blink: s.blink > 0, t: t + s.i, beat, night: nightMix > 0.5, lookX, lookY,
+        pulse: s.pulse, mouth: s.mouth, blink: s.blink > 0, t: t + s.i, beat, night: darkness > 0.5, lookX, lookY,
         scale: pop * (party && s.sound ? 1 + Math.sin(t * 6 + s.i) * 0.03 : 1), hover: s.hover,
       });
       if (s.sound) {
-        // name tag + remove button
         const b = xButton(s);
         g.fillStyle = 'rgba(255,255,255,0.92)'; g.strokeStyle = '#1d1036'; g.lineWidth = 2.5;
         g.beginPath(); g.arc(b.x, b.y, b.r * 0.8, 0, Math.PI * 2); g.fill(); g.stroke();
@@ -615,20 +875,13 @@
       }
     }
 
-    // particles
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.age += dt;
       if (p.age > p.life) { particles.splice(i, 1); continue; }
       p.x += p.vx * dt; p.y += p.vy * dt;
       g.globalAlpha = 1 - p.age / p.life;
-      if (p.kind === 'note') {
-        p.vx += Math.sin(p.age * 5) * 4;
-        drawNote(g, p.x, p.y, p.r, p.color, p.rot);
-      } else {
-        p.vy += 400 * dt; p.vx *= 0.97;
-        drawStar(g, p.x, p.y, p.r, p.color);
-      }
+      if (p.kind === 'note') { p.vx += Math.sin(p.age * 5) * 4; drawNote(g, p.x, p.y, p.r, p.color, p.rot); } else { p.vy += 400 * dt; p.vx *= 0.97; drawStar(g, p.x, p.y, p.r, p.color); }
     }
     g.globalAlpha = 1;
 
@@ -641,16 +894,23 @@
       g.restore();
     }
 
-    // jam meter
+    // star meter + this jam's points
     if (engine) {
       const filled = slots.filter((s) => s.sound && !s.muted).length;
-      const mw = Math.min(260, W * 0.6), mx = W / 2 - mw / 2, my = meterY();
-      g.fillStyle = 'rgba(20,10,45,0.55)';
-      g.beginPath(); g.roundRect(mx - 8, my - 14, mw + 16, 28, 14); g.fill();
+      const mw = Math.min(300, W * 0.7), mx = W / 2 - mw / 2, my = meterY();
+      const sw = mw * 0.64;
+      g.fillStyle = 'rgba(20,10,45,0.6)';
+      g.beginPath(); g.roundRect(mx - 8, my - 15, mw + 16, 30, 15); g.fill();
       for (let i = 0; i < SLOTS; i++) {
         const on = i < filled;
-        drawStar(g, mx + (i + 0.5) * mw / SLOTS, my, on ? 10 + (party ? Math.sin(t * 10 + i) * 2 : 0) : 8, on ? '#ffd23f' : 'rgba(255,255,255,0.25)');
+        drawStar(g, mx + (i + 0.5) * sw / SLOTS, my, on ? 9 + (party ? Math.sin(t * 10 + i) * 2 : 0) : 7, on ? '#ffd23f' : 'rgba(255,255,255,0.25)');
       }
+      shownPts += (Progress.jam.pts - shownPts) * Math.min(1, dt * 6);
+      if (Math.abs(Progress.jam.pts - shownPts) < 1) shownPts = Progress.jam.pts;
+      g.font = '800 18px "Baloo 2", sans-serif'; g.textAlign = 'right'; g.textBaseline = 'middle';
+      g.fillStyle = party ? '#ffd23f' : '#fff';
+      g.fillText(fmt(shownPts), mx + mw, my + 1);
+      g.textAlign = 'start'; g.textBaseline = 'alphabetic';
     }
   }
 
@@ -678,14 +938,17 @@
   window.addEventListener('resize', layout);
   window.addEventListener('orientationchange', () => setTimeout(layout, 200));
   layout();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); paintIcons(); });
   requestAnimationFrame(frame);
   requestAnimationFrame(titleFrame);
 
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  if ('serviceWorker' in navigator && location.protocol === 'https:' && /github\.io$/.test(location.hostname)) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
   // test hooks
-  window.__sprunkee = { slots, assign: (i, id) => assign(slots[i], SOUNDS.find((s) => s.id === id)), get engine() { return engine; }, get party() { return party; }, get intro() { return !!intro; } };
+  window.__sprunkee = {
+    slots, assign: (i, id) => assign(slots[i], soundById(id)), loadJam: (code, ini) => loadJam(Jam.decode(code), ini), setStage,
+    get engine() { return engine; }, get party() { return party; }, get intro() { return !!intro; }, get stage() { return stageTo; },
+  };
 })();
