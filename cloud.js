@@ -33,7 +33,8 @@ const Jam = {
     return { stage, slots };
   },
   link(code, ini) {
-    const base = location.href.split('#')[0];
+    // the artifact build points links at the public GitHub Pages copy
+    const base = window.SPRUNKEE_HOME || location.href.split('#')[0];
     return `${base}#jam-${code}${ini ? '-' + ini : ''}`;
   },
   fromHash() {
