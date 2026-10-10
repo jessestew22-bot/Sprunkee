@@ -1,0 +1,217 @@
+:root {
+  --bg: #1b1036;
+  --ink: #fff;
+  --panel: rgba(20, 10, 45, 0.72);
+  --beat: #ff5d73;
+  --fx: #2fd38a;
+  --melody: #3aa8ff;
+  --voice: #b46bff;
+  --gold: #ffd23f;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ---------- top bar ---------- */
+#topbar {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 8px);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px;
+  z-index: 5;
+  pointer-events: none;
+}
+#logo {
+  font-size: clamp(22px, 4.2vw, 40px);
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-shadow: 0 3px 0 rgba(0,0,0,.35);
+  pointer-events: none;
+}
+#logo span { display: inline-block; animation: wob 2.4s ease-in-out infinite; }
+#logo span:nth-child(2n) { animation-delay: -.6s; }
+#logo span:nth-child(3n) { animation-delay: -1.2s; }
+@keyframes wob { 50% { transform: translateY(-4px) rotate(-4deg); } }
+
+.tools { display: flex; gap: 8px; pointer-events: auto; }
+.tool {
+  width: 48px; height: 48px;
+  border-radius: 16px;
+  border: 0;
+  background: var(--panel);
+  color: #fff;
+  font-size: 24px;
+  line-height: 48px;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+  transition: transform .12s;
+}
+.tool:active { transform: translateY(3px) scale(.95); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.tool svg { width: 28px; height: 28px; vertical-align: middle; }
+
+/* ---------- stage ---------- */
+#stage {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  display: block;
+}
+
+/* ---------- tray ---------- */
+#tray {
+  flex: 0 0 auto;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  border-top: 3px solid rgba(255,255,255,.12);
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px 10px;
+}
+.group { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.group h3 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: .85;
+}
+.icons { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.icon {
+  width: var(--isz, 54px);
+  height: var(--isz, 54px);
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.85);
+  padding: 0;
+  cursor: grab;
+  position: relative;
+  box-shadow: 0 4px 0 rgba(0,0,0,.4);
+  transition: transform .15s, opacity .2s, filter .2s;
+  touch-action: none;
+}
+.icon canvas { width: 100%; height: 100%; display: block; border-radius: 50%; pointer-events: none; }
+.icon:hover { transform: translateY(-3px) scale(1.06); }
+.icon.used { opacity: .28; filter: grayscale(1); transform: scale(.88); }
+.icon.hint { animation: hint 1s ease-in-out infinite; }
+@keyframes hint { 50% { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(255,210,63,.6); } }
+
+@media (max-aspect-ratio: 1/1) {
+  #tray { grid-template-columns: repeat(2, 1fr); }
+}
+
+#ghost {
+  position: fixed;
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 50;
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 10px 25px rgba(0,0,0,.45);
+  border: 3px solid #fff;
+  display: none;
+}
+#ghost canvas { width: 100%; height: 100%; border-radius: 50%; }
+
+/* ---------- overlays ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  background: radial-gradient(circle at 50% 40%, #6a3bd1 0%, #2a1460 55%, #12082a 100%);
+}
+.overlay.hidden { display: none; }
+#start h1 {
+  font-size: clamp(54px, 13vw, 120px);
+  margin: 0;
+  line-height: 1;
+  text-shadow: 0 6px 0 rgba(0,0,0,.35);
+}
+#start h1 span { display: inline-block; animation: wob 2s ease-in-out infinite; }
+#start h1 span:nth-child(1) { color: var(--beat); }
+#start h1 span:nth-child(2) { color: var(--gold); animation-delay: -.3s; }
+#start h1 span:nth-child(3) { color: var(--fx); animation-delay: -.6s; }
+#start h1 span:nth-child(4) { color: var(--melody); animation-delay: -.9s; }
+#start h1 span:nth-child(5) { color: var(--voice); animation-delay: -1.2s; }
+#start h1 span:nth-child(6) { color: #ff9be1; animation-delay: -1.5s; }
+#start h1 span:nth-child(7) { color: #7ff5ff; animation-delay: -1.8s; }
+#start h1 span:nth-child(8) { color: #fff; animation-delay: -2.1s; }
+#start p { font-size: 20px; opacity: .85; margin: 12px 0 28px; }
+#startCanvas { width: min(520px, 90vw); height: 150px; }
+.big {
+  font: inherit;
+  font-size: 30px;
+  font-weight: 800;
+  color: #2a1460;
+  background: var(--gold);
+  border: 0;
+  border-radius: 999px;
+  padding: 16px 48px;
+  box-shadow: 0 7px 0 #b88a00;
+  cursor: pointer;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.big:active { transform: translateY(5px); box-shadow: 0 2px 0 #b88a00; }
+@keyframes pulse { 50% { transform: scale(1.06); } }
+
+#help { background: rgba(10, 5, 25, .8); }
+#help .card {
+  background: #fff;
+  color: #2a1460;
+  border-radius: 28px;
+  padding: 24px 28px;
+  max-width: 440px;
+  width: calc(100% - 32px);
+  box-shadow: 0 10px 0 rgba(0,0,0,.3);
+}
+#help h2 { margin: 0 0 12px; font-size: 30px; }
+#help ol { text-align: left; font-size: 20px; padding-left: 26px; margin: 0 0 18px; line-height: 1.5; }
+#help li b { color: #6a3bd1; }
+
+#toast {
+  position: fixed;
+  left: 50%;
+  top: 22%;
+  transform: translate(-50%, -50%) scale(.5);
+  z-index: 30;
+  font-size: clamp(40px, 9vw, 90px);
+  font-weight: 800;
+  color: var(--gold);
+  text-shadow: 0 5px 0 #b05a00, 0 0 30px rgba(255,210,63,.7);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .35s cubic-bezier(.2,1.6,.4,1), opacity .3s;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-4deg); }

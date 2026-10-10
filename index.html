@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Sprunkee</title>
+  <meta name="description" content="Drag sounds onto the Sprunkees and make your own song!">
+  <meta name="theme-color" content="#2a1460">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sprunkee">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="topbar">
+      <div id="logo" aria-label="Sprunkee"></div>
+      <div class="tools">
+        <button class="tool" id="btnNight" title="Day / Night" aria-label="Switch day and night"></button>
+        <button class="tool" id="btnShuffle" title="Surprise mix" aria-label="Surprise mix"></button>
+        <button class="tool" id="btnClear" title="Clear" aria-label="Clear everyone"></button>
+        <button class="tool" id="btnHelp" title="How to play" aria-label="How to play">?</button>
+      </div>
+    </div>
+    <canvas id="stage"></canvas>
+    <div id="tray"></div>
+  </div>
+
+  <div id="ghost"></div>
+  <div id="toast"></div>
+
+  <div class="overlay" id="start">
+    <h1><span>S</span><span>P</span><span>R</span><span>U</span><span>N</span><span>K</span><span>E</span><span>E</span></h1>
+    <canvas id="startCanvas"></canvas>
+    <p>Make music with your new friends!</p>
+    <button class="big" id="btnPlay">TAP TO PLAY</button>
+  </div>
+
+  <div class="overlay hidden" id="help">
+    <div class="card">
+      <h2>How to play</h2>
+      <ol>
+        <li><b>Drag</b> (or tap) a round sound onto a Sprunkee.</li>
+        <li><b>Tap</b> a Sprunkee to hush it. Tap again to wake it.</li>
+        <li>Tap the <b>✕</b> to send it home.</li>
+        <li>Fill all 7 for a <b>SUPER JAM!</b></li>
+        <li>Press the <b>moon</b> for spooky night music.</li>
+      </ol>
+      <button class="big" id="btnHelpOk">GOT IT!</button>
+    </div>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="sounds.js"></script>
+  <script src="art.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
