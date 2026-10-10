@@ -28,6 +28,7 @@
         <button class="tool" id="btnClear" title="Clear" aria-label="Clear everyone"></button>
         <button class="tool" id="btnTrophy" title="Goals and scores" aria-label="Goals and scores"><span class="badge" id="trophyBadge" hidden></span></button>
         <button class="tool" id="btnShare" title="Share my jam" aria-label="Share my jam"></button>
+        <button class="tool" id="btnShop" title="Shop" aria-label="Shop"></button>
         <button class="tool" id="btnHelp" title="How to play" aria-label="How to play">?</button>
       </div>
     </div>
@@ -98,6 +99,27 @@
         <button class="mini wide" id="btnCopy">Copy link</button>
       </div>
       <button class="link" id="shareClose">Close</button>
+    </div>
+  </div>
+
+  <!-- the shop (pretend purchases with coins earned by jamming; no real money) -->
+  <div class="overlay dim hidden" id="shop">
+    <div class="panel">
+      <div class="tabs"><h2 class="ptitle">Sprunkee Shop</h2><span class="wallet" id="wallet"></span><button class="close" id="shopClose" aria-label="Close">✕</button></div>
+      <div class="shopgrid" id="shopGrid"></div>
+    </div>
+  </div>
+  <div class="overlay dim hidden" id="buy">
+    <div class="sheet" id="buySheet">
+      <canvas id="buyArt"></canvas>
+      <h2 id="buyName"></h2>
+      <p id="buyText"></p>
+      <div id="buyAsk">
+        <button class="big buybtn" id="buyGo"></button>
+        <button class="link" id="buyNo">Not now</button>
+      </div>
+      <div id="buyWait" hidden><div class="spinner"></div><p>Getting it ready…</p></div>
+      <div id="buyDone" hidden><div class="check">✓</div><p class="ok">It's yours!</p><button class="big" id="buyOk">AWESOME!</button></div>
     </div>
   </div>
 

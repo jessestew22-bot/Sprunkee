@@ -223,8 +223,9 @@ html, body {
 .badge { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--beat); color: #fff; font-size: 13px; line-height: 20px; font-weight: 800; padding: 0 5px; box-shadow: 0 2px 0 rgba(0,0,0,.3); }
 @media (max-width: 620px) {
   #logo { display: none; }
+  .tools { gap: 5px; }
   #topbar { justify-content: center; }
-  .tool { width: 44px; height: 44px; line-height: 44px; border-radius: 14px; font-size: 22px; }
+  .tool { width: 42px; height: 42px; line-height: 42px; border-radius: 13px; font-size: 21px; }
   .tool svg { width: 24px; height: 24px; }
 }
 
@@ -313,3 +314,34 @@ html, body {
 .inicol { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .inicol button { font: inherit; font-size: 26px; width: 64px; height: 52px; border: 0; border-radius: 14px; background: #efe8ff; color: #6a3bd1; cursor: pointer; }
 .inicol span { font-size: 54px; font-weight: 800; width: 64px; height: 70px; line-height: 70px; background: #2a1460; color: var(--gold); border-radius: 14px; }
+
+/* ---------- v3: Link + shop ---------- */
+.icon.star { border-color: #ffd23f; box-shadow: 0 0 0 3px #ff5d73, 0 0 14px 4px rgba(255,210,63,.8), 0 4px 0 rgba(0,0,0,.4); animation: starglow 1.6s ease-in-out infinite; }
+@keyframes starglow { 50% { box-shadow: 0 0 0 3px #3aa8ff, 0 0 22px 8px rgba(255,210,63,.95), 0 4px 0 rgba(0,0,0,.4); } }
+.icon.star.used { animation: none; }
+
+.wallet { margin-left: auto; font-weight: 800; font-size: 22px; color: #8a5a00; background: #fff3c4; border-radius: 999px; padding: 6px 14px; font-variant-numeric: tabular-nums; }
+.wallet + .close { margin-left: 10px; }
+.shopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 14px; overflow-y: auto; touch-action: pan-y; }
+.item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 10px 12px; border-radius: 20px; background: #f6f1ff; border: 3px solid #e7dcff; text-align: center; font: inherit; color: #2a1460; cursor: pointer; }
+.item canvas { width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; }
+.item .nm { font-weight: 800; font-size: 17px; line-height: 1.15; }
+.item .price { margin-top: 4px; font-weight: 800; font-size: 17px; border-radius: 999px; padding: 6px 14px; background: #ffd23f; color: #5a3b00; box-shadow: 0 3px 0 #c99a00; }
+.item.free .price { background: #ff5d73; color: #fff; box-shadow: 0 3px 0 #b02840; }
+.item.owned .price { background: #2fd38a; color: #08361f; box-shadow: 0 3px 0 #1b8f5b; }
+.item.off .price { background: #d9cff0; color: #4a3a75; box-shadow: 0 3px 0 #a99bc9; }
+.item.gift { border-color: #ff9be1; background: #fff0fa; }
+
+.sheet { background: #fff; color: #2a1460; width: min(420px, 100%); margin-top: auto; border-radius: 28px 28px 0 0; padding: 20px 22px calc(22px + env(safe-area-inset-bottom)); text-align: center; animation: sheetup .3s cubic-bezier(.2,1.2,.4,1); box-shadow: 0 -8px 30px rgba(0,0,0,.3); }
+@keyframes sheetup { from { transform: translateY(100%); } }
+.sheet h2 { margin: 6px 0 2px; font-size: 28px; }
+.sheet p { margin: 4px 0 12px; font-size: 17px; }
+#buyArt { width: 200px; height: 150px; display: block; margin: 0 auto; }
+.buybtn { width: 100%; animation: none; }
+.spinner { width: 54px; height: 54px; margin: 10px auto; border-radius: 50%; border: 7px solid #efe8ff; border-top-color: #6a3bd1; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.check { width: 74px; height: 74px; margin: 6px auto 0; border-radius: 50%; background: #2fd38a; color: #fff; font-size: 48px; font-weight: 800; line-height: 74px; animation: pop .45s cubic-bezier(.2,1.8,.4,1); }
+@keyframes pop { from { transform: scale(0); } }
+.shake { animation: shake .4s; }
+@keyframes shake { 20%, 60% { transform: translateX(-10px); } 40%, 80% { transform: translateX(10px); } }
+.coinfly { position: fixed; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff3a0, #ffc531 55%, #c98a00); border: 2px solid #8a5a00; z-index: 60; pointer-events: none; }

@@ -27,6 +27,12 @@ A kid-friendly music-mixing game inspired by Sprunki / Incredibox. Drag sounds o
 
 The leaderboard and Jams list need a free Google Sheet backend. See `apps-script/SETUP.md` (about 5 minutes). Without it, share links still work.
 
+## Link and the Shop
+- **Link** is the band leader: gold, with a cape and a crown. He sings his own name, glows in rainbow colors, and **doubles your points** while he's on stage.
+- **The Shop** (🛍️ button) sells extras and stages for **coins** you earn by jamming: 1 coin per 10 points, +50 per SUPER JAM, +100 per trophy. It's pretend shopping with no real money anywhere. The first item is a free gift for Link.
+  - Extras (tap to switch on/off once owned): Cool Shades, Party Hats, Rainbow Notes, Bubble Machine, Disco Ball, Fireworks.
+  - Stages: Under the Sea, Jungle Jam, Dino Island, Rainbow Sky.
+
 ## Run locally
 Any static server works:
 ```

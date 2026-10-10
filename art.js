@@ -115,6 +115,20 @@ function drawSprunkee(g, x, y, size, s) {
   g.lineJoin = 'round';
   g.lineCap = 'round';
 
+  // hero cape (drawn behind everything else)
+  if (look.cape && s.active) {
+    const flap = Math.sin(t * 6) * w * 0.06 + (s.pulse || 0) * w * 0.08;
+    g.fillStyle = '#e8364f';
+    g.beginPath();
+    g.moveTo(-w * 0.35, -h * 0.72);
+    g.quadraticCurveTo(-w * 0.75 - flap, -h * 0.3, -w * 0.62 - flap, size * 0.02);
+    g.lineTo(w * 0.62 + flap, size * 0.02);
+    g.quadraticCurveTo(w * 0.75 + flap, -h * 0.3, w * 0.35, -h * 0.72);
+    g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#ff6f86';
+    g.beginPath(); g.ellipse(-w * 0.45 - flap * 0.5, -h * 0.25, w * 0.06, h * 0.2, 0.2, 0, Math.PI * 2); g.fill();
+  }
+
   // feet (tap with the beat)
   const tap = active ? Math.max(0, Math.sin(beat * Math.PI)) * size * 0.04 : 0;
   g.fillStyle = shade(col.startsWith('#') ? col : IDLE_COLOR, -0.25);
@@ -527,6 +541,20 @@ function drawAccessory(g, acc, s, w, h, size, lw, col) {
       g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.ellipse(-w * 0.3, -h * 0.85, w * 0.08, h * 0.12, -0.5, 0, Math.PI * 2); g.fill();
       g.strokeStyle = OUTLINE;
       break;
+    case 'hero': {
+      g.fillStyle = '#ffd23f';
+      g.beginPath();
+      g.moveTo(-w * 0.28, top + h * 0.08); g.lineTo(-w * 0.32, top - h * 0.16); g.lineTo(-w * 0.15, top - h * 0.03);
+      g.lineTo(0, top - h * 0.24); g.lineTo(w * 0.15, top - h * 0.03); g.lineTo(w * 0.32, top - h * 0.16); g.lineTo(w * 0.28, top + h * 0.08);
+      g.closePath(); g.fill(); g.stroke();
+      [[-w * 0.32, -0.16], [0, -0.24], [w * 0.32, -0.16]].forEach(([x, y]) => { g.fillStyle = '#7ff5ff'; g.beginPath(); g.arc(x, top + h * y, w * 0.04, 0, Math.PI * 2); g.fill(); g.stroke(); });
+      // a big star badge on the chest
+      const r = w * 0.12 * (1 + (s.pulse || 0) * 0.25);
+      g.fillStyle = '#fff6b0'; g.beginPath();
+      for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5; const rr = i % 2 ? r * 0.45 : r; g.lineTo(Math.cos(an) * rr, -h * 0.25 + Math.sin(an) * rr); }
+      g.closePath(); g.fill(); g.stroke();
+      break;
+    }
     case 'mohawk':
       g.fillStyle = dark;
       g.beginPath();

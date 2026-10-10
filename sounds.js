@@ -475,6 +475,33 @@ const SOUNDS = [
       S.hit(1);
     },
   },
+  // ================= LINK: the band leader (a special friend for Ian's son) =================
+  {
+    id: 'link', name: 'Link', cat: 'melody', color: '#ffc531', special: true,
+    look: { shape: 'round', acc: 'hero', eyes: 'big', mouth: 'grin', cape: true },
+    vol: 0.75, rev: 0.25, dly: 0.2,
+    play(e, S) {
+      // a bold hero theme, doubled an octave up like an 8-bit power-up
+      const HERO = [
+        [[0, 0, 2], [2, 2, 2], [4, 4, 4], [8, 7, 6]],
+        [[0, 6, 3], [3, 4, 3], [6, 8, 6]],
+        [[0, 7, 2], [2, 9, 2], [4, 7, 4], [8, 5, 4]],
+        [[0, 7, 3], [3, 5, 3], [6, 3, 2], [8, 4, 3]],
+      ];
+      for (const [, d, len] of HERO[S.bar].filter((n) => n[0] === S.s16)) {
+        const m = e.deg(d, 0);
+        e.tone(S.out, S.t, m, S.sd * len * 0.85, { type: 'square', v: 0.11, cutoff: 3200, rel: 0.08, vib: 0.008 });
+        e.tone(S.out, S.t, m + 12, S.sd * len * 0.85, { type: 'sawtooth', v: 0.05, cutoff: 4000, voices: 2, detune: 9, rel: 0.1 });
+        S.hit(1);
+      }
+      // he sings his own name: "LINK!"
+      if ((S.bar === 1 || S.bar === 3) && S.s16 === 12) {
+        e.voice(S.out, S.t, e.chordNote(S.step, 3, 0), S.sd * 2, 'i', { cons: 'l', to: 'u', v: 0.5, vib: 0.006, a: 0.01, rel: 0.06 });
+        e.snap(S.out, S.t + S.sd * 2, 0.25, { freq: 3000, q: 2, len: 0.04, claps: 1 }); // the "k"
+        S.hit(1);
+      }
+    },
+  },
 ];
 
 // Bonus fanfare layer for SUPER JAM (4 bars, played on the master bus).

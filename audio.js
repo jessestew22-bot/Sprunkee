@@ -11,6 +11,11 @@ const THEMES = {
   candy:  { tonic: 67, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 5, 3, 4], bpm: 124, rev: 0.2, dark: false }, // G major  I-vi-IV-V
   space:  { tonic: 62, scale: [0, 2, 3, 5, 7, 9, 10], prog: [0, 3, 6, 4], bpm: 118, rev: 0.45, dark: true }, // D dorian i-IV-VII-v
   snow:   { tonic: 63, scale: [0, 2, 4, 5, 7, 9, 11], prog: [5, 3, 0, 4], bpm: 104, rev: 0.4, dark: false }, // Eb major vi-IV-I-V
+  // shop stages
+  ocean:   { tonic: 58, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 5, 1, 4], bpm: 100, rev: 0.5, dark: false }, // Bb major I-vi-ii-V
+  jungle:  { tonic: 64, scale: [0, 2, 3, 5, 7, 9, 10], prog: [0, 3, 0, 6], bpm: 112, rev: 0.25, dark: false }, // E dorian i-IV-i-VII
+  dino:    { tonic: 56, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 3, 5, 4], bpm: 108, rev: 0.3, dark: false }, // Ab major I-IV-vi-V
+  rainbow: { tonic: 62, scale: [0, 2, 4, 5, 7, 9, 11], prog: [3, 4, 2, 5], bpm: 116, rev: 0.3, dark: false }, // D major IV-V-iii-vi
 };
 const STAGE_IDS = Object.keys(THEMES);
 
