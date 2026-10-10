@@ -22,7 +22,7 @@ jobs:
       - name: Stage site
         run: |
           mkdir _site
-          cp -r index.html style.css audio.js sounds.js art.js game.js sw.js manifest.webmanifest icons _site/
+          cp -r index.html style.css audio.js sounds.js art.js game.js sw.js manifest.webmanifest icons music _site/
       - uses: actions/upload-pages-artifact@v3
       - id: deployment
         uses: actions/deploy-pages@v4

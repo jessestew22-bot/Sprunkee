@@ -145,6 +145,7 @@
     const old = slots.find((s) => s.sound === snd);
     if (old && old !== slot) clearSlot(old, true);
     slot.sound = snd; slot.muted = false; slot.enter = performance.now();
+    stopIntro();
     engine.setSound(slot.i, snd);
     if (prev) iconEls[prev.id].classList.remove('used');
     iconEls[snd.id].classList.add('used');
@@ -266,7 +267,7 @@
     pick.push(...rest.slice(0, n - 4));
     pick.forEach((snd, i) => assign(slots[i], snd));
   });
-  $('btnClear').addEventListener('click', () => { if (engine) slots.forEach((s) => clearSlot(s)); });
+  $('btnClear').addEventListener('click', () => { if (!engine) return; slots.forEach((s) => clearSlot(s)); playIntro(); });
   $('btnHelp').addEventListener('click', () => $('help').classList.remove('hidden'));
   $('btnHelpOk').addEventListener('click', () => $('help').classList.add('hidden'));
 
@@ -298,12 +299,44 @@
     document.querySelector('meta[name=theme-color]').setAttribute('content', name === 'night' ? '#0b0a2a' : '#2a1460');
   }
 
+  // ---------- opening theme (Ian's request) ----------
+  // Decoded before the first tap so it starts instantly (iOS lesson). Missing file = no intro, no error.
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const actx = new AC();
+  let intro = null;
+  const introBuf = fetch('music/intro.mp3')
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('no intro'))))
+    .then((b) => new Promise((res, rej) => actx.decodeAudioData(b, res, rej)))
+    .catch(() => null);
+
+  function playIntro() {
+    introBuf.then((buf) => {
+      if (!buf || !engine || intro || slots.some((s) => s.sound)) return;
+      const c = engine.ctx, src = c.createBufferSource(), gn = c.createGain();
+      src.buffer = buf; src.loop = true;
+      gn.gain.setValueAtTime(0.0001, c.currentTime);
+      gn.gain.exponentialRampToValueAtTime(1.5, c.currentTime + 0.4);
+      src.connect(gn); gn.connect(engine.bus); // through the limiter so it can't clip
+      src.start();
+      intro = { src, gn };
+    });
+  }
+
+  function stopIntro() {
+    if (!intro) return;
+    const t = engine.ctx.currentTime;
+    intro.gn.gain.cancelScheduledValues(t);
+    intro.gn.gain.setTargetAtTime(0, t, 0.3);
+    intro.src.stop(t + 1.6);
+    intro = null;
+  }
+
   // ---------- start ----------
   function startGame() {
     if (started) return;
     started = true;
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* not supported */ }
-    engine = new Engine();
+    engine = new Engine(actx);
     engine.ctx.resume();
     // iOS: play a silent buffer inside the gesture to unlock output.
     const b = engine.ctx.createBufferSource();
@@ -328,9 +361,10 @@
       }
     });
     engine.start();
-    // welcome jingle
+    // welcome jingle, then the opening theme
     const t = engine.ctx.currentTime + 0.05;
     [72, 76, 79, 84].forEach((m, i) => engine.mallet(engine.bus, t + i * 0.09, m, 0.2, { ratio: 3.98, pv: 0.2, len: 0.5 }));
+    playIntro();
     $('start').classList.add('hidden');
     try { if (!localStorage.getItem('sprunkee.helped')) { $('help').classList.remove('hidden'); localStorage.setItem('sprunkee.helped', '1'); } } catch (e) { /* storage blocked */ }
   }
@@ -653,5 +687,5 @@
   }
 
   // test hooks
-  window.__sprunkee = { slots, assign: (i, id) => assign(slots[i], SOUNDS.find((s) => s.id === id)), get engine() { return engine; }, get party() { return party; } };
+  window.__sprunkee = { slots, assign: (i, id) => assign(slots[i], SOUNDS.find((s) => s.id === id)), get engine() { return engine; }, get party() { return party; }, get intro() { return !!intro; } };
 })();
