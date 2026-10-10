@@ -480,9 +480,17 @@
 
   // ---------- trophy room ----------
   let roomTab = 'goals';
+  // No online backend = no Top 10 / Jams tabs (share links still work).
+  Cloud.ready.then(() => {
+    if (Cloud.online) return;
+    document.querySelectorAll('#room .tab[data-tab=top], #room .tab[data-tab=jams]').forEach((b) => b.remove());
+    if (roomTab !== 'goals') roomTab = 'goals';
+  });
+
   function openRoom(tab) {
     newGoals = 0; $('trophyBadge').hidden = true;
     $('room').classList.remove('hidden');
+    if (!Cloud.online) tab = 'goals';
     showTab(tab || roomTab);
     postBest();
   }
@@ -503,7 +511,7 @@
   function renderGoals() {
     const pane = $('paneGoals');
     const done = GOALS.filter((x) => Progress.state.done[x.id]).length;
-    pane.innerHTML = `<p class="note">${done} of ${GOALS.length} trophies. Total points: <b>${fmt(Progress.state.total)}</b></p>`;
+    pane.innerHTML = `<p class="note">${done} of ${GOALS.length} trophies. Best jam: <b>${fmt(Progress.state.best)}</b>. Total points: <b>${fmt(Progress.state.total)}</b></p>`;
     for (const goal of GOALS) {
       const [p, m] = Progress.progressOf(goal);
       const isDone = !!Progress.state.done[goal.id];

@@ -22,10 +22,9 @@ A kid-friendly music-mixing game inspired by Sprunki / Incredibox. Drag sounds o
 ## Unlocks, goals and scores
 - **20 goals** (🏆 button). Finishing them unlocks **12 secret friends** and **4 new stages** (Beach Party, Candy Land, Outer Space, Snow Day).
 - **Points**: every bar your band plays earns points. More friends and more colors earn more, and SUPER JAM doubles it plus +500. A band left alone slowly earns less, so keep changing it up.
-- **Top 10 leaderboard**: best single jam, with 3-letter arcade initials.
-- **Share jams**: the share button posts your jam (auto-named, like "Funky Pickle Jam") to the 🎵 Jams list, and gives you a link anyone can open.
+- **Share jams**: the share button gives your jam a fun name and a link. Anyone who opens the link hears your band.
 
-The leaderboard and Jams list need a free Google Sheet backend. See `apps-script/SETUP.md` (about 5 minutes). Without it, share links still work.
+Optional (off): an online Top 10 + shared Jams list via a Google Sheet (`apps-script/SETUP.md`). The tabs only appear once `config.js` has a backend URL.
 
 ## Link and the Shop
 - **Link** is the band leader: gold, with a cape and a crown. He sings his own name, glows in rainbow colors, and **doubles your points** while he's on stage.
